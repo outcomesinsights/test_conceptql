@@ -19,7 +19,7 @@ end
 LOAD_INDICATION_FILES = SOURCE_FILES.pathmap('%{^statements/,tmp/validation_results/}X.loaded')
 CLOBBER.include(LOAD_INDICATION_FILES)
 
-VALIDATION_TEST_FILES = SOURCE_FILES.pathmap('%{^statements/,validation_tests/}d.pg')
+VALIDATION_TEST_FILES = SOURCE_FILES.pathmap('%{^statements/,tmp/validation_tests/}d.pg')
 CLOBBER.include(VALIDATION_TEST_FILES)
 
 
@@ -61,7 +61,7 @@ rule '.loaded' => [->(f) { csv_for_loaded(f) }] do |t|
 end
 
 SQL_FILES.pathmap('%d').uniq.each do |dir|
-  pg_file = dir.pathmap('%{^tmp/sql/,validation_tests/}p.pg')
+  pg_file = dir.pathmap('%{^tmp/sql/,tmp/validation_tests/}p.pg')
   sql_files = SQL_FILES.select { |p| p.match(dir) }
 
   file pg_file => sql_files do
@@ -85,7 +85,7 @@ namespace :validation do
   end
   task reload_results: [:mark_unloaded, :load_results]
   task test: [:environment, :load_results] + VALIDATION_TEST_FILES do
-    sh "pg_prove -d #{ENV['DBNAME']} -r validation_tests"
+    sh "pg_prove -d #{ENV['DBNAME']} -r tmp/validation_tests"
   end
 end
 

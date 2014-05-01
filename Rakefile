@@ -81,10 +81,13 @@ task test: [:validate]
 task validate: 'validate:test'
 namespace :validate do
   task load_results: RESULT_FILES + LOAD_INDICATION_FILES
+
   task :mark_unloaded do
     rm_rf Rake::FileList.new('tmp/validation_results/**/*.loaded')
   end
+
   task reload_results: [:mark_unloaded, :load_results]
+
   task test: [:environment, :load_results] + VALIDATION_TEST_FILES do
     sh "pg_prove -d #{ENV['DBNAME']} -r tmp/validation_tests"
   end

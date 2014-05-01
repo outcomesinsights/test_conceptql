@@ -8,7 +8,7 @@ require 'rake/clean'
 
 SOURCE_FILES = Rake::FileList.new('statements/**/*.rb')
 
-SQL_FILES = SOURCE_FILES.pathmap('%X.sql')
+SQL_FILES = SOURCE_FILES.pathmap('%{^statements/,tmp/sql/}X.sql')
 CLEAN.include(SQL_FILES)
 
 RESULT_FILES = SOURCE_FILES.pathmap('%{^statements/,validation_results/}X.csv')
@@ -29,13 +29,14 @@ task :environment do
   Dotenv.load
 end
 
-rule '.sql' => '.rb' do |t|
+rule '.sql' => [->(f) { rb_for_sql(f) }] do |t|
   query = cql_query(t.source)
   all_paths = paths(t.source)
   schema_name = all_paths.first
   results_query = db.from(validation_results_table_name(schema_name))
   output = ["SET search_path TO #{all_paths.join(',')};"]
   output << db.select(Sequel.function(:results_eq, query.sql, results_query.sql, db.literal(schema_name.to_s))).sql + ';'
+  mkdir_p t.name.pathmap('%d')
   File.write(t.name, output.join("\n"));
 end
 
@@ -58,8 +59,8 @@ rule '.loaded' => '.csv' do |t|
   touch t.name
 end
 
-SOURCE_FILES.pathmap('%d').uniq.each do |dir|
-  pg_file = dir.pathmap('%{^statements/,validation_tests/}p.pg')
+SQL_FILES.pathmap('%d').uniq.each do |dir|
+  pg_file = dir.pathmap('%{^tmp/sql/,validation_tests/}p.pg')
   sql_files = SQL_FILES.select { |p| p.match(dir) }
 
   file pg_file => sql_files do
@@ -149,4 +150,8 @@ end
 
 def rb_for_csv(csv_file)
   SOURCE_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^validation_results/,statements/}X') }
+end
+
+def rb_for_sql(sql_file)
+  SOURCE_FILES.detect { |f| f.ext('') == sql_file.pathmap('%{^tmp/sql/,statements/}X') }
 end

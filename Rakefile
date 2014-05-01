@@ -76,9 +76,10 @@ SQL_FILES.pathmap('%d').uniq.each do |dir|
   end
 end
 
-task test: ['validation:test']
+task test: [:validate]
 
-namespace :validation do
+task validate: 'validate:test'
+namespace :validate do
   task load_results: RESULT_FILES + LOAD_INDICATION_FILES
   task :mark_unloaded do
     rm_rf Rake::FileList.new('tmp/validation_results/**/*.loaded')

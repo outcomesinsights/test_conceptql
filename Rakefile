@@ -16,7 +16,7 @@ RESULT_FILES.exclude do |f|
   `git ls-files #{f}`.present?
 end
 
-LOAD_INDICATION_FILES = SOURCE_FILES.pathmap('%{^statements/,validation_results/}X.loaded')
+LOAD_INDICATION_FILES = SOURCE_FILES.pathmap('%{^statements/,tmp/validation_results/}X.loaded')
 CLOBBER.include(LOAD_INDICATION_FILES)
 
 VALIDATION_TEST_FILES = SOURCE_FILES.pathmap('%{^statements/,validation_tests/}d.pg')
@@ -49,13 +49,14 @@ rule '.csv' => [->(f) { rb_for_csv(f) }] do |t|
   end
 end
 
-rule '.loaded' => '.csv' do |t|
-  schema_name = schemas(t.source.pathmap('%{^validation_results/,statements/}p')).first
+rule '.loaded' => [->(f) { csv_for_loaded(f) }] do |t|
+  schema_name = schemas(t.source.pathmap('%{^tmp/validation_results/,statements/}p')).first
   create_schema(schema_name)
   create_validation_results_table(schema_name)
   File.open(t.source) do |csv|
     db.copy_into(validation_results_table_name(schema_name), format: :csv, data: csv.read)
   end
+  mkdir_p t.name.pathmap('%d')
   touch t.name
 end
 
@@ -80,7 +81,7 @@ task test: ['validation:test']
 namespace :validation do
   task load_results: RESULT_FILES + LOAD_INDICATION_FILES
   task :mark_unloaded do
-    rm_rf Rake::FileList.new('validation_results/**/*.loaded')
+    rm_rf Rake::FileList.new('tmp/validation_results/**/*.loaded')
   end
   task reload_results: [:mark_unloaded, :load_results]
   task test: [:environment, :load_results] + VALIDATION_TEST_FILES do
@@ -101,7 +102,7 @@ end
 
 def schemas(source_file)
   schemas = ['']
-  Pathname.new(source_file.pathmap('%X')).each_filename do |part|
+  Pathname.new(source_file.pathmap('%{^statements/,validation_results/}X')).each_filename do |part|
     schemas << [schemas.last, part.gsub(/\W/, '_')].join('_')
   end
   schemas.reverse.map { |w| '_pg_tap' + w }
@@ -148,8 +149,12 @@ def create_validation_results_table(schema_name)
   end
 end
 
+def csv_for_loaded(loaded_file)
+  loaded_file.pathmap('%{^tmp/,}X.csv')
+end
+
 def rb_for_csv(csv_file)
-  SOURCE_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^validation_results/,statements/}X') }
+  SOURCE_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^tmp/validation_results/,statements/}X') }
 end
 
 def rb_for_sql(sql_file)

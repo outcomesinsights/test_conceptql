@@ -155,7 +155,7 @@ def csv_for_loaded(loaded_file)
 end
 
 def rb_for_csv(csv_file)
-  SOURCE_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^tmp/validation_results/,statements/}X') }
+  SOURCE_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^validation_results/,statements/}X') }
 end
 
 def rb_for_sql(sql_file)

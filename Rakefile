@@ -93,16 +93,14 @@ namespace :validate do
   end
 
   task clobber_db: [:environment, :mark_unloaded] do
-    SOURCE_FILES.map { |dir| schemas(dir) }.flatten.uniq.each do |schema|
-      drop_schema(schema)
-    end
+    drop_schemas_like('_pg_tap_validation%')
   end
 end
 
 namespace :db do
   namespace :clobber do
     task schemas: [:environment, 'validate:mark_unloaded'] do
-      db[:information_schema__schemata].where(Sequel.like(:schema_name, '_pg_tap%')).select_map(:schema_name).each { |schema| drop_schema(schema) }
+      drop_schemas_like('_pg_tap%')
     end
   end
 end
@@ -167,12 +165,16 @@ def create_validation_results_table(schema_name)
   end
 end
 
-def drop_schema(schema)
-  db.execute("DROP SCHEMA #{schema} CASCADE")
-rescue Sequel::DatabaseError
-  raise unless $!.message =~ /InvalidSchemaName/
-rescue PG::InvalidSchemaName
-  # This is find with me.  Do nothing
+def drop_schemas_like(schema_pattern)
+  db[:information_schema__schemata].where(Sequel.like(:schema_name, schema_pattern)).select_map(:schema_name).each do |schema|
+    begin
+      db.execute("DROP SCHEMA #{schema} CASCADE")
+    rescue Sequel::DatabaseError
+      raise unless $!.message =~ /InvalidSchemaName/
+    rescue PG::InvalidSchemaName
+      # This is find with me.  Do nothing
+    end
+  end
 end
 
 def csv_for_loaded(loaded_file)

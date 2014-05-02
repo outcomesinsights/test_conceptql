@@ -91,6 +91,20 @@ namespace :validate do
   task test: [:environment, :load_results] + VALIDATION_TEST_FILES do
     sh "pg_prove -d #{ENV['DBNAME']} -r tmp/validation_tests"
   end
+
+  task clobber_db: [:environment, :mark_unloaded] do
+    SOURCE_FILES.map { |dir| schemas(dir) }.flatten.uniq.each do |schema|
+      drop_schema(schema)
+    end
+  end
+end
+
+namespace :db do
+  namespace :clobber do
+    task schemas: [:environment, 'validate:mark_unloaded'] do
+      db[:information_schema__schemata].where(Sequel.like(:schema_name, '_pg_tap%')).select_map(:schema_name).each { |schema| drop_schema(schema) }
+    end
+  end
 end
 
 #########################################
@@ -151,6 +165,14 @@ def create_validation_results_table(schema_name)
     Date   :start_date
     Date   :end_date
   end
+end
+
+def drop_schema(schema)
+  db.execute("DROP SCHEMA #{schema} CASCADE")
+rescue Sequel::DatabaseError
+  raise unless $!.message =~ /InvalidSchemaName/
+rescue PG::InvalidSchemaName
+  # This is find with me.  Do nothing
 end
 
 def csv_for_loaded(loaded_file)

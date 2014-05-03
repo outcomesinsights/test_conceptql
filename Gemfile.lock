@@ -39,3 +39,4 @@ DEPENDENCIES
   pg
   rake
   sequel
+  thor

@@ -191,10 +191,11 @@ namespace :db do
   end
 
   namespace :schema do
-    task :dump do
-      db.extension :schema_dumper
-      db.execute('SET search_path TO cdmv2')
-      puts db.dump_schema_migration
+    task :dump_truven do
+      dump_using_schema_path('cdmv2')
+    end
+    task dump: :environment do
+      dump_using_schema_path(bh.dbschema)
     end
   end
 end

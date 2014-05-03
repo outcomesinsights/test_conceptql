@@ -14,6 +14,11 @@ class MyCLI < Thor
     puts _explain(file_path)
   end
 
+  desc 'explain_analyze statement', 'Given a ConceptQL statement file, prints out the EXPLAIN for the resulting query'
+  def explain_analyze(file_path)
+    puts _explain_analyze(file_path)
+  end
+
   desc 'show statement', 'Given a ConceptQL statement file, prints outl the SQL'
   def show(file_path)
     puts cql_query(file_path).sql
@@ -48,6 +53,10 @@ private
 
   def _explain(file_path)
     cql_query(file_path).explain
+  end
+
+  def _explain_analyze(file_path)
+    cql_query(file_path).analyze
   end
 end
 

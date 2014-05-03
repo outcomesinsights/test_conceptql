@@ -5,6 +5,11 @@ require 'dotenv'
 require 'csv'
 require 'conceptql/query'
 require 'rake/clean'
+require_relative 'lib/db'
+require_relative 'lib/conceptqlizer'
+
+include DB
+include ConceptQLizer
 
 STATEMENT_FILES = Rake::FileList.new('statements/**/*.rb')
 
@@ -197,17 +202,11 @@ end
 #########################################
 # Utility functions
 #########################################
-def db
-  @db ||= begin
-    Dotenv.load
-    url = "postgres://#{ENV['DBUSER']}:#{ENV['DBPASSWORD']}@#{ENV['DBHOST']}/#{ENV['DBNAME']}"
-    Sequel.connect(url)
-  end
-end
 
-def cql_query(file)
-  conceptql_query = ConceptQL::Query.new(db, eval(File.read(file)))
-  conceptql_query.query
+def dump_using_schema_path(path)
+  db.execute("SET search_path TO #{path}")
+  db.extension :schema_dumper
+  puts db.dump_schema_migration
 end
 
 def create_schema(name)

@@ -79,6 +79,7 @@ rule(/(benchmark.+)\.csv$/ => [->(f) { bh.rb_for_csv(f) }]) do |t|
   db.execute("SET search_path TO #{bh.paths(t.source).join(',')};")
   rows = db.from(Sequel.function(:_time_trials, cql_query(t.source).sql, 10, 0.8))
            .select(Sequel.function(:avg, :a_time), Sequel.function(:stddev, :a_time)).all
+  puts rows.first.values
   CSV.open(t.name, 'w') do |csv|
     rows.each do |row|
       csv << row.values

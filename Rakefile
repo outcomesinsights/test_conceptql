@@ -181,6 +181,10 @@ namespace :benchmark do
     require 'conceptql/view_maker'
     ConceptQL::ViewMaker.make_views(db, bh.dbschema)
   end
+
+  task :update, :pattern do |t, args|
+    sh "find statements -name '#{args[:pattern]}' -type d | xargs -n 1 -I{} find {} -name '*.rb' | xargs touch"
+  end
 end
 
 namespace :db do

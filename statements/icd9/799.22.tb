@@ -1,0 +1,6 @@
+# Fetches all conditions that match 799.22 (Iritability)
+# Tests fetching conditions by an ICD-9 code that maps to target_concept_id 0,
+# meaning there is no OMOP concept for that ICD-9 code
+#
+# This excercises fetching ICD-9s by concept_source_value only
+{ icd9: '799.22' }

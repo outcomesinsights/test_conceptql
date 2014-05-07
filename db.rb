@@ -24,6 +24,11 @@ class MyCLI < Thor
     puts cql_query(file_path).sql
   end
 
+  desc 'count statement [schema]', 'Given a ConceptQL statement file, prints the number of rows that match'
+  def count(file_path, schema = nil)
+    puts _count(file_path, schema)
+  end
+
   desc 'copy statement', 'Given a ConceptQL statement file, copies the SQL to clipboard via pbcopy'
   def copy(file_path)
     puts pbcopy(cql_query(file_path).sql)
@@ -57,6 +62,10 @@ private
 
   def _explain_analyze(file_path)
     cql_query(file_path).analyze
+  end
+
+  def _count(file_path, schema = nil)
+    cql_query(file_path, schema).count
   end
 end
 

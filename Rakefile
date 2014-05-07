@@ -44,7 +44,7 @@ task :environment do
 end
 
 rule(/(validation.+)\.sql/ => [->(f) { vh.rb_for_sql(f) }]) do |t|
-  query = cql_query(t.source)
+  query = ordered_cql_query(t.source)
   all_paths = vh.paths(t.source)
   schema_name = all_paths.first
   results_query = db.from(vh.results_table_name(schema_name))
@@ -66,8 +66,11 @@ end
 
 rule(/(validation.+)\.csv$/ => [->(f) { vh.rb_for_csv(f) }]) do |t|
   mkdir_p t.name.pathmap('%d')
+  db.execute("SET search_path TO #{vh.paths(t.source).join(',')};")
+  rows = ordered_cql_query(t.source).tap {|o| pbcopy(o.sql) }.all
   CSV.open(t.name, 'w') do |csv|
-    cql_query(t.source).each do |row|
+    csv << rows.first.keys unless rows.empty?
+    rows.each do |row|
       csv << row.values
     end
   end
@@ -92,7 +95,7 @@ rule(/(validation.+)\.loaded$/ => [->(f) { vh.csv_for_loaded(f) }]) do |t|
   create_schema(schema_name)
   vh.create_results_table(schema_name)
   File.open(t.source) do |csv|
-    db.copy_into(vh.results_table_name(schema_name), format: :csv, data: csv.read)
+    db.copy_into(vh.results_table_name(schema_name), format: :csv, data: csv, options: 'HEADER')
   end
   mkdir_p t.name.pathmap('%d')
   touch t.name

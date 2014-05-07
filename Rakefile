@@ -7,33 +7,37 @@ require 'conceptql/query'
 require 'rake/clean'
 require_relative 'lib/db'
 require_relative 'lib/conceptqlizer'
+require_relative 'lib/pbcopeez'
 
 include DB
 include ConceptQLizer
+include Pbcopeez
 
 STATEMENT_FILES = Rake::FileList.new('statements/**/*.rb')
+BENCHMARK_STATEMENT_FILES = STATEMENT_FILES + Rake::FileList.new('statements_for_benchmark/**/*.rb')
+VALIDATION_STATEMENT_FILES = STATEMENT_FILES + Rake::FileList.new('statements_for_validation/**/*.rb')
 
-VALIDATION_SQL_FILES = STATEMENT_FILES.pathmap('%{^statements/,tmp/validation_sql/}X.sql')
+VALIDATION_SQL_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,tmp/validation_sql/}X.sql')
 CLEAN.include(VALIDATION_SQL_FILES)
 
-BENCHMARK_SQL_FILES = STATEMENT_FILES.pathmap('%{^statements/,tmp/benchmark_sql/}X.sql')
+BENCHMARK_SQL_FILES = BENCHMARK_STATEMENT_FILES.pathmap('%{^statements*/,tmp/benchmark_sql/}X.sql')
 CLEAN.include(BENCHMARK_SQL_FILES)
 
-VALIDATION_RESULT_FILES = STATEMENT_FILES.pathmap('%{^statements/,validation_results/}X.csv')
+VALIDATION_RESULT_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,validation_results/}X.csv')
 VALIDATION_RESULT_FILES.exclude do |f|
   `git ls-files #{f}`.present?
 end
 
-BENCHMARK_RESULT_FILES = STATEMENT_FILES.pathmap('%{^statements/,benchmark_results/}X.csv')
+BENCHMARK_RESULT_FILES = BENCHMARK_STATEMENT_FILES.pathmap('%{^statements*/,benchmark_results/}X.csv')
 CLOBBER.include(BENCHMARK_RESULT_FILES)
 
-VALIDATION_LOAD_INDICATION_FILES = STATEMENT_FILES.pathmap('%{^statements/,tmp/validation_results/}X.loaded')
+VALIDATION_LOAD_INDICATION_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,tmp/validation_results/}X.loaded')
 CLOBBER.include(VALIDATION_LOAD_INDICATION_FILES)
 
-VALIDATION_TEST_FILES = STATEMENT_FILES.pathmap('%{^statements/,tmp/validation_tests/}d.pg')
+VALIDATION_TEST_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,tmp/validation_tests/}d.pg')
 CLOBBER.include(VALIDATION_TEST_FILES)
 
-BENCHMARK_TEST_FILES = STATEMENT_FILES.pathmap('%{^statements/,tmp/benchmark_tests/}d.pg')
+BENCHMARK_TEST_FILES = BENCHMARK_STATEMENT_FILES.pathmap('%{^statements*/,tmp/benchmark_tests/}d.pg')
 CLOBBER.include(BENCHMARK_TEST_FILES)
 
 
@@ -91,7 +95,7 @@ rule(/(benchmark.+)\.csv$/ => [->(f) { bh.rb_for_csv(f) }]) do |t|
 end
 
 rule(/(validation.+)\.loaded$/ => [->(f) { vh.csv_for_loaded(f) }]) do |t|
-  schema_name = vh.schemas(t.source.pathmap('%{^tmp/validation_results/,statements/}p')).first
+  schema_name = vh.schemas(t.source.pathmap('%{^validation_results/,statements/}p')).first
   create_schema(schema_name)
   vh.create_results_table(schema_name)
   File.open(t.source) do |csv|
@@ -131,12 +135,16 @@ namespace :validate do
 
   task reload_results: [:mark_unloaded, :load_results]
 
+  task reload_data: [:environment] do
+    vh.reload_data
+  end
+
   task test: [:environment, :load_results] + VALIDATION_TEST_FILES do
     sh "pg_prove -d #{ENV['DBNAME']} -r tmp/validation_tests"
   end
 
   task clobber_db: [:environment, :mark_unloaded] do
-    drop_schemas_like('_pg_tap_validation%')
+    drop_schemas_like('_pgt_v%')
   end
 end
 
@@ -145,45 +153,8 @@ namespace :benchmark do
     sh "pg_prove -d #{ENV['DBNAME']} -r tmp/benchmark_tests"
   end
 
-  task reload_data: [:environment, :reload_schema, :import_data, :add_indexes]
-
-  task reload_schema: [:destroy_schema, :load_schema, :make_views]
-
-  task destroy_schema: [:destroy_schema, :load_schema] do
-    puts "About to completely destroy and rebuild #{ENV['DBNAME']}'s #{bh.dbschema}.  CTRL-C now if this is a Bad Thing."
-    $stdin.gets
-    drop_schemas_like(bh.dbschema)
-    create_schema(bh.dbschema)
-  end
-
-  task load_schema: [:environment] do
-    db.execute("SET search_path TO #{bh.dbschema}")
-    Sequel.extension :migration
-    Sequel::Migrator.run(db, 'schemas', target: 1)
-  end
-
-  task import_data: [:environment] do
-    Dir.chdir(ENV['DATA_DIR']) do
-      %w(person visit_occurrence condition_occurrence procedure_occurrence death).each do |table|
-        file_name = table + '.csv'
-        #table_name = "#{bh.dbschema}__#{table}".to_sym
-        table_name = "#{bh.dbschema}.#{table}"
-        puts "Importing into #{table_name}"
-        command = "COPY #{table_name} FROM '#{File.expand_path(file_name)}' WITH HEADER DELIMITER ',' CSV"
-        db.execute(command)
-      end
-    end
-  end
-
-  task add_indexes: [:environment] do
-    db.execute("SET search_path TO #{bh.dbschema}")
-    Sequel.extension :migration
-    Sequel::Migrator.run(db, 'schemas', target: 2)
-  end
-
-  task make_views: [:environment] do
-    require 'conceptql/view_maker'
-    ConceptQL::ViewMaker.make_views(db, bh.dbschema)
+  task reload_data: [:environment] do
+    bh.reload_data
   end
 
   task :update, :pattern do |t, args|
@@ -194,7 +165,7 @@ end
 namespace :db do
   namespace :clobber do
     task schemas: [:environment, 'validate:mark_unloaded'] do
-      drop_schemas_like('_pg_tap%')
+      drop_schemas_like('_pgt%')
     end
   end
 
@@ -257,7 +228,69 @@ def bh
   @bh ||= BenchmarkHelper.new
 end
 
-class ValidationHelper
+class MyHelper
+  def reload_data
+    reload_schema
+    import_data
+    add_indexes
+  end
+
+  def reload_schema
+    destroy_schema
+    load_schema
+    make_views
+  end
+
+  def destroy_schema
+    puts "About to completely destroy and rebuild #{ENV['DBNAME']}'s #{dbschema}.  CTRL-C now if this is a Bad Thing."
+    $stdin.gets
+    drop_schemas_like(dbschema)
+    create_schema(dbschema)
+  end
+
+  def load_schema
+    db.execute("SET search_path TO #{dbschema}")
+    Sequel.extension :migration
+    Sequel::Migrator.run(db, 'schemas', target: 1)
+  end
+
+  def import_data
+    Dir.chdir(data_dir) do
+      %w(person visit_occurrence condition_occurrence procedure_occurrence death).each do |table|
+        file_name = table + '.csv'
+        table_name = "#{dbschema}.#{table}"
+        puts "Importing into #{table_name}"
+        command = "COPY #{table_name} FROM '#{File.expand_path(file_name)}' WITH HEADER DELIMITER ',' CSV"
+        db.execute(command)
+      end
+    end
+  end
+
+  def add_indexes
+    db.execute("SET search_path TO #{dbschema}")
+    Sequel.extension :migration
+    Sequel::Migrator.run(db, 'schemas', target: 2)
+  end
+
+  def make_views
+    require 'conceptql/view_maker'
+    ConceptQL::ViewMaker.make_views(db, dbschema)
+  end
+
+  def env_or_bust(var_name)
+    value = ENV[var_name]
+    raise "Please #{var_name} in .env" unless value
+    value
+  end
+
+  def truncate(str)
+    return str if str.length < 60
+    l = str.length
+    str[0,30].sub(/_+$/, '') + str[l-30, l]
+  end
+end
+
+class ValidationHelper < MyHelper
   def create_results_table(schema_name)
     db.create_table!(results_table_name(schema_name)) do
       Bignum :person_id
@@ -280,34 +313,44 @@ class ValidationHelper
   end
 
   def rb_for_csv(csv_file)
-    STATEMENT_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^validation_results/,statements/}X') }
+    VALIDATION_STATEMENT_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^validation_results/,statements/}X') } ||
+    VALIDATION_STATEMENT_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^validation_results/,statements_for_validation/}X') }
   end
 
   def rb_for_sql(sql_file)
-    STATEMENT_FILES.detect { |f| f.ext('') == sql_file.pathmap('%{^tmp/validation_sql/,statements/}X') }
+    VALIDATION_STATEMENT_FILES.detect { |f| f.ext('') == sql_file.pathmap('%{^tmp/validation_sql/,statements/}X') } ||
+    VALIDATION_STATEMENT_FILES.detect { |f| f.ext('') == sql_file.pathmap('%{^tmp/validation_sql/,statements_for_validation/}X') }
   end
 
   def schemas(source_file)
     schemas = ['']
-    Pathname.new(source_file.pathmap('%{^statements/,validation_results/}X')).each_filename do |part|
+    Pathname.new(source_file.pathmap('%{^statements*/,v/}X')).each_filename do |part|
       schemas << [schemas.last, part.gsub(/\W/, '_')].join('_')
     end
-    schemas.reverse.map { |w| '_pg_tap' + w }
+    schemas.reverse.map { |w| truncate('_pgt' + w) }.tap { |o| puts o.inspect }
   end
 
   def paths(source_file)
     path_list = schemas(source_file)
-    path_list << 'cdmv2'
+    path_list << dbschema
     path_list << 'vocabulary'
     path_list << 'public'
   end
 
   def results_table_name(schema_name)
-    "#{schema_name}__validation_results".to_sym
+    "#{truncate(schema_name)}__v_results".to_sym
+  end
+
+  def dbschema
+    @dbschema ||= env_or_bust('VALIDATION_DBSCHEMA')
+  end
+
+  def data_dir
+    @data_dir ||= env_or_bust('VALIDATION_DATA_DIR')
   end
 end
 
-class BenchmarkHelper
+class BenchmarkHelper < MyHelper
   def create_results_table(schema_name)
     db.create_table!(results_table_name(schema_name)) do
       Numeric :average_time
@@ -320,38 +363,40 @@ class BenchmarkHelper
   end
 
   def rb_for_csv(csv_file)
-    STATEMENT_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^benchmark_results/,statements/}X') }
+    BENCHMARK_STATEMENT_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^benchmark_results/,statements/}X') } ||
+    BENCHMARK_STATEMENT_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^benchmark_results/,statements_for_benchmark/}X') }
   end
 
   def rb_for_sql(sql_file)
     puts sql_file
-    STATEMENT_FILES.detect { |f| f.ext('') == sql_file.pathmap('%{^tmp/benchmark_sql/,statements/}X') }
+    BENCHMARK_STATEMENT_FILES.detect { |f| f.ext('') == sql_file.pathmap('%{^tmp/benchmark_sql/,statements/}X') } ||
+    BENCHMARK_STATEMENT_FILES.detect { |f| f.ext('') == sql_file.pathmap('%{^tmp/benchmark_sql/,statements_for_benchmark/}X') }
   end
 
   def schemas(source_file)
     schemas = ['']
-    Pathname.new(source_file.pathmap('%{^statements/,benchmarks_results/}X')).each_filename do |part|
+    Pathname.new(source_file.pathmap('%{^statements/,b/}X')).each_filename do |part|
       schemas << [schemas.last, part.gsub(/\W/, '_')].join('_')
     end
-    schemas.reverse.map { |w| '_pg_tap' + w }
+    schemas.reverse.map { |w| truncate('_pgt' + w) }
   end
 
   def paths(source_file)
     path_list = schemas(source_file)
     path_list << bh.dbschema
-    path_list << 'cdmv2'
     path_list << 'vocabulary'
     path_list << 'public'
   end
 
   def results_table_name(schema_name)
-    "#{schema_name}__benchmarks_results".to_sym
+    "#{truncate(schema_name)}__b_results".to_sym
   end
 
   def dbschema
     @dbschema ||= begin
-      raise 'Please specify schema to use for benchmarking in .env using BM_DBSCHEMA' unless ENV['BM_DBSCHEMA']
-      ENV['BM_DBSCHEMA']
+      schema = ENV['BM_DBSCHEMA']
+      raise 'Please specify schema to use for benchmarking in .env using BM_DBSCHEMA' unless schema
+      schema
     end
   end
 

@@ -393,11 +393,11 @@ class BenchmarkHelper < MyHelper
   end
 
   def dbschema
-    @dbschema ||= begin
-      schema = ENV['BM_DBSCHEMA']
-      raise 'Please specify schema to use for benchmarking in .env using BM_DBSCHEMA' unless schema
-      schema
-    end
+    @dbschema ||= env_or_bust('BM_DBSCHEMA')
+  end
+
+  def data_dir
+    @data_dir ||= env_or_bust('BM_DATA_DIR')
   end
 
   def desired_average_for(source)

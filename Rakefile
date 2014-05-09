@@ -160,6 +160,19 @@ namespace :benchmark do
   task :update, :pattern do |t, args|
     sh "find statements -name '#{args[:pattern]}' -type d | xargs -n 1 -I{} find {} -name '*.rb' | xargs touch"
   end
+
+  task :report do
+    require 'csv'
+    mkdir_p 'reports'
+    CSV.open("reports/#{Time.now.strftime('%Y-%m-%d-%H-%M-%S')}.csv", 'w') do |csv|
+      BENCHMARK_RESULT_FILES.sort.each do |file|
+        label = file.pathmap('%-1d - %n')
+        CSV.read(file).map { |row| [label] + row.map(&:to_f) }.each do |row|
+          csv << row
+        end
+      end
+    end
+  end
 end
 
 namespace :db do

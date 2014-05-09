@@ -135,8 +135,16 @@ namespace :validate do
 
   task reload_results: [:mark_unloaded, :load_results]
 
+  task load_data: [:environment] do
+    vh.load_data
+  end
+
   task reload_data: [:environment] do
-    vh.reload_data
+    if ENV['OVERRIDE']
+      vh.load_data!
+    else
+      puts 'Please set OVERRIDE so to indicate you know what you are doing'
+    end
   end
 
   task test: [:environment, :load_results] + VALIDATION_TEST_FILES do
@@ -153,8 +161,16 @@ namespace :benchmark do
     sh "pg_prove -d #{ENV['DBNAME']} -r tmp/benchmark_tests"
   end
 
+  task load_data: [:environment] do
+    bh.load_data
+  end
+
   task reload_data: [:environment] do
-    bh.reload_data
+    if ENV['OVERRIDE']
+      bh.load_data!
+    else
+      puts 'Please set OVERRIDE so to indicate you know what you are doing'
+    end
   end
 
   task :update, :pattern do |t, args|
@@ -301,6 +317,19 @@ class MyHelper
     l = str.length
     str[0,30].sub(/_+$/, '') + str[l-30, l]
   end
+
+  def load_data
+    load_data! unless data_loaded?
+  end
+
+  def data_loaded?
+    db.execute("SET search_path TO #{dbschema}")
+    db[:person_with_dates].count == expected_patient_count
+  end
+
+  def load_data!
+    reload_data
+  end
 end
 
 class ValidationHelper < MyHelper
@@ -361,6 +390,10 @@ class ValidationHelper < MyHelper
   def data_dir
     @data_dir ||= env_or_bust('VALIDATION_DATA_DIR')
   end
+
+  def expected_patient_count
+    250
+  end
 end
 
 class BenchmarkHelper < MyHelper
@@ -419,6 +452,10 @@ class BenchmarkHelper < MyHelper
 
   def standard_deviation_for(source)
     CSV.read(source.pathmap('%{^statements/,benchmark_results/}X.csv')).first.last.to_f
+  end
+
+  def expected_patient_count
+    112754
   end
 end
 

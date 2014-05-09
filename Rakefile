@@ -271,8 +271,7 @@ class MyHelper
   end
 
   def destroy_schema
-    puts "About to completely destroy and rebuild #{ENV['DBNAME']}'s #{dbschema}.  CTRL-C now if this is a Bad Thing."
-    $stdin.gets
+    puts "Completely destroying and rebuilding #{ENV['DBNAME']}'s #{dbschema}"
     drop_schemas_like(dbschema)
     create_schema(dbschema)
   end

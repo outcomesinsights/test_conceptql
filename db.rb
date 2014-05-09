@@ -54,6 +54,17 @@ class MyCLI < Thor
     end
   end
 
+  desc 'index_all_the_things schema', 'Given the schema, creates and index on all FK columns (columns ending in _id)'
+  def index_all_the_things(schema)
+    db.execute("SET search_path TO #{schema}")
+    db.tables.each do |table|
+      db.schema(table).select { |column_name, column_info| column_name.to_s =~ /_id$/ }.each do |column_name, column_info|
+        puts "Indexing #{table}'s #{column_name}"
+        db.add_index(table, column_name, ignore_errors: true)
+      end
+    end
+  end
+
 private
 
   def _explain(file_path)

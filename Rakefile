@@ -286,10 +286,11 @@ class MyHelper
     Dir.chdir(data_dir) do
       %w(person visit_occurrence condition_occurrence procedure_occurrence death).each do |table|
         file_name = table + '.csv'
-        table_name = "#{dbschema}.#{table}"
+        table_name = "#{dbschema}__#{table}".to_sym
         puts "Importing into #{table_name}"
-        command = "COPY #{table_name} FROM '#{File.expand_path(file_name)}' WITH HEADER DELIMITER ',' CSV"
-        db.execute(command)
+        File.open(file_name) do |csv|
+          db.copy_into(table_name, format: :csv, data: csv, options: 'HEADER')
+        end
       end
     end
   end
@@ -323,7 +324,12 @@ class MyHelper
 
   def data_loaded?
     db.execute("SET search_path TO #{dbschema}")
-    db[:person_with_dates].count == expected_patient_count
+    begin
+      db[:person_with_dates].count == expected_patient_count
+    rescue Sequel::DatabaseError
+      return false if $!.message =~ /UndefinedTable/
+      raise
+    end
   end
 
   def load_data!

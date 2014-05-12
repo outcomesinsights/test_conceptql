@@ -325,7 +325,7 @@ class MyHelper
   def data_loaded?
     db.execute("SET search_path TO #{dbschema}")
     begin
-      db[:person_with_dates].count == expected_patient_count
+      db[:death_with_dates].count == expected_death_count
     rescue Sequel::DatabaseError
       return false if $!.message =~ /UndefinedTable/
       raise
@@ -396,8 +396,8 @@ class ValidationHelper < MyHelper
     @data_dir ||= env_or_bust('VALIDATION_DATA_DIR')
   end
 
-  def expected_patient_count
-    250
+  def expected_death_count
+    1
   end
 end
 
@@ -459,8 +459,8 @@ class BenchmarkHelper < MyHelper
     CSV.read(source.pathmap('%{^statements/,benchmark_results/}X.csv')).first.last.to_f
   end
 
-  def expected_patient_count
-    112754
+  def expected_death_count
+    1863
   end
 end
 

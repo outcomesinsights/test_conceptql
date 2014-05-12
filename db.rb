@@ -56,6 +56,7 @@ class MyCLI < Thor
 
   desc 'index_all_the_things schema', 'Given the schema, creates and index on all FK columns (columns ending in _id)'
   def index_all_the_things(schema)
+    start_time = Time.now
     db.execute("SET search_path TO #{schema}")
     db.tables.each do |table|
       db.schema(table).select { |column_name, column_info| column_name.to_s =~ /_id$/ }.each do |column_name, column_info|
@@ -63,6 +64,7 @@ class MyCLI < Thor
         db.add_index(table, column_name, ignore_errors: true)
       end
     end
+    puts "Seems to be indexed already" if Time.now - start_time < 10
   end
 
 private

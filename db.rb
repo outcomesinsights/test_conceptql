@@ -46,7 +46,7 @@ class MyCLI < Thor
     db.execute("ANALYZE #{table_name.to_s.gsub('__', '.')}")
     puts "Capturing explain before index change"
     File.write('/tmp/new.txt', _explain(file_path))
-    system('vimdiff /tmp/{orig,new}.txt')
+    system('vimdiff /tmp/orig.txt /tmp/new.txt')
     puts "Like what you saw?  Type 'keep' to keep the index."
     unless $stdin.gets.chomp.downcase == 'keep'
       puts "Dropping index"

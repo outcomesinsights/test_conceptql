@@ -64,7 +64,11 @@ class MyCLI < Thor
         db.add_index(table, column_name, ignore_errors: true)
       end
     end
-    puts "Seems to be indexed already" if Time.now - start_time < 10
+    if Time.now - start_time < 10
+      puts "Seems to be indexed already"
+    else
+      db.execute('ANALYZE')
+    end
   end
 
 private

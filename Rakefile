@@ -41,7 +41,7 @@ BENCHMARK_TEST_FILES = BENCHMARK_STATEMENT_FILES.pathmap('%{^statements*/,tmp/be
 CLOBBER.include(BENCHMARK_TEST_FILES)
 
 
-task default: 'benchmark:test'
+task default: 'test'
 
 task :environment do
   Dotenv.load
@@ -123,7 +123,7 @@ VALIDATION_SQL_FILES.pathmap('%d').uniq.each do |dir|
   end
 end
 
-task test: [:validate]
+task test: [:validate, :benchmark]
 
 task validate: 'validate:test'
 namespace :validate do
@@ -156,6 +156,7 @@ namespace :validate do
   end
 end
 
+task benchmark: 'benchmark:test'
 namespace :benchmark do
   task test: [:environment] + BENCHMARK_RESULT_FILES + BENCHMARK_TEST_FILES do
     sh "pg_prove -d #{ENV['DBNAME']} -r tmp/benchmark_tests"

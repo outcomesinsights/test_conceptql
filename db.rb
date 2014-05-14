@@ -71,6 +71,23 @@ class MyCLI < Thor
     end
   end
 
+  desc 'compare_reports [old_report_path] [new_report_path]', 'Compares new_report to old_report.  Defaults new_report to most recent, old report to second most recent'
+  def compare_reports(old_report_file = nil, new_report_file = nil)
+    require_relative 'lib/report'
+    Dir.chdir('reports') do
+      entries = Dir.entries('.').to_a.sort.reverse
+      new_report_file ||= entries.shift
+      old_report_file ||= entries.shift
+      new_report = Report.new(new_report_file)
+      old_report = Report.new(old_report_file)
+      CSV.open('/dev/stdout', 'a') do |csv|
+        new_report.compare(old_report).each do |line|
+          csv << line
+        end
+      end
+    end
+  end
+
 private
 
   def _explain(file_path)

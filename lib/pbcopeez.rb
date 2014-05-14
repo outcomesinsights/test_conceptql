@@ -4,6 +4,9 @@ module Pbcopeez
     IO.popen('pbcopy', 'w') do |i|
       i << str
     end
+  rescue
+    # nothing
+  ensure
     str
   end
 end

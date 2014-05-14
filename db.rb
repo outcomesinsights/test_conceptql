@@ -9,32 +9,32 @@ class MyCLI < Thor
   include ConceptQLizer
   include Pbcopeez
 
-  desc 'explain statement', 'Given a ConceptQL statement file, prints out the EXPLAIN for the resulting query'
+  desc 'explain statement_file', 'Given a ConceptQL statement file, prints out the EXPLAIN for the resulting query'
   def explain(file_path)
     puts _explain(file_path)
   end
 
-  desc 'explain_analyze statement', 'Given a ConceptQL statement file, prints out the EXPLAIN for the resulting query'
+  desc 'explain_analyze statement_file', 'Given a ConceptQL statement file, prints out the EXPLAIN for the resulting query'
   def explain_analyze(file_path)
     puts _explain_analyze(file_path)
   end
 
-  desc 'show statement', 'Given a ConceptQL statement file, prints outl the SQL'
+  desc 'show statement_file', 'Given a ConceptQL statement file, prints outl the SQL'
   def show(file_path)
     puts cql_query(file_path).sql
   end
 
-  desc 'count statement [schema]', 'Given a ConceptQL statement file, prints the number of rows that match'
+  desc 'count statement_file [schema]', 'Given a ConceptQL statement file, prints the number of rows that match'
   def count(file_path, schema = nil)
     puts _count(file_path, schema)
   end
 
-  desc 'copy statement', 'Given a ConceptQL statement file, copies the SQL to clipboard via pbcopy'
+  desc 'copy statement_file', 'Given a ConceptQL statement file, copies the SQL to clipboard via pbcopy'
   def copy(file_path)
     puts pbcopy(cql_query(file_path).sql)
   end
 
-  desc 'try_index file_path, table_name, columns', 'Given an index string from the command line, apply it, and run an explain'
+  desc 'try_index statement_file table_name columns_to_index', 'Temporarily creates an index on the given columns for the given table and compares an explain for the statement before and after the index is applied'
   def try_index(file_path, table_name, *columns)
     table_name = table_name.to_sym
     columns = columns.map(&:to_sym)
@@ -54,7 +54,7 @@ class MyCLI < Thor
     end
   end
 
-  desc 'index_all_the_things schema', 'Given the schema, creates and index on all FK columns (columns ending in _id)'
+  desc 'index_all_the_things schema', 'Given the schema, creates and index on all FK columns (columns ending in _id) and value columns (columns ending in _value)'
   def index_all_the_things(schema)
     start_time = Time.now
     db.execute("SET search_path TO #{schema}")

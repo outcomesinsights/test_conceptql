@@ -2,6 +2,8 @@
 [._]s[a-w][a-z]
 *.un~
 Session.vim
+benchmark_results
+reports
 .netrwhist
 *~
 .env

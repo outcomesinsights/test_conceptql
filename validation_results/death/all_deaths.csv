@@ -1,2 +1,0 @@
-person_id,condition_occurrence_id,death_id,drug_cost_id,drug_exposure_id,observation_id,payer_plan_period_id,procedure_cost_id,procedure_occurrence_id,visit_occurrence_id,start_date,end_date
-177,,177,,,,,,,,2010-07-01,2010-07-01

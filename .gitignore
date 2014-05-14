@@ -1,10 +1,10 @@
-[._]*.s[a-w][a-z]
-[._]s[a-w][a-z]
 *.un~
-Session.vim
-benchmark_results
-reports
-.netrwhist
 *~
 .env
+.netrwhist
+Session.vim
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+benchmark_results
+reports
 tmp

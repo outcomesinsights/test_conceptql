@@ -7,7 +7,7 @@ module ConceptQLizer
   end
 
   def ordered_cql_query(file, schema = nil)
-    cql_query(file, schema).order(*_columns)
+    cql_query(file, schema).order(*_order_columns)
   end
 
 private
@@ -26,5 +26,11 @@ private
       start_date
       end_date
     ).map(&:to_sym)
+  end
+
+  def _order_columns
+    _columns.map do |column|
+      Sequel.asc(column, nulls: :first)
+    end
   end
 end

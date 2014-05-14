@@ -47,6 +47,8 @@ task :environment do
   Dotenv.load
 end
 
+# This rule takes a validation ConceptQL statement and creates a snippet of SQL to run
+# the query in a "results_eq" pgTAP test
 rule(/(validation.+)\.sql/ => [->(f) { vh.rb_for_sql(f) }]) do |t|
   query = ordered_cql_query(t.source)
   all_paths = vh.paths(t.source)
@@ -58,6 +60,8 @@ rule(/(validation.+)\.sql/ => [->(f) { vh.rb_for_sql(f) }]) do |t|
   File.write(t.name, output.join("\n"));
 end
 
+# This rule takes a benchmark ConceptQL statement and creates a snippet of SQL to run
+# the query in a "performs_within" pgTAP test
 rule(/(benchmark.+)\.sql/ => [->(f) { bh.rb_for_sql(f) }]) do |t|
   query = cql_query(t.source)
   desired_average = bh.desired_average_for(t.source)
@@ -68,6 +72,8 @@ rule(/(benchmark.+)\.sql/ => [->(f) { bh.rb_for_sql(f) }]) do |t|
   File.write(t.name, output.join("\n"));
 end
 
+# This rule takes a validation ConceptQL statement and turns it into SQL
+# and records the results from that SQL in a CSV file
 rule(/(validation.+)\.csv$/ => [->(f) { vh.rb_for_csv(f) }]) do |t|
   mkdir_p t.name.pathmap('%d')
   db.execute("SET search_path TO #{vh.paths(t.source).join(',')};")
@@ -80,6 +86,8 @@ rule(/(validation.+)\.csv$/ => [->(f) { vh.rb_for_csv(f) }]) do |t|
   end
 end
 
+# This rule takes a benchmark ConceptQL statement and turns it into SQL
+# and runs it 10 times to get an average and standard deviation for the execution time
 rule(/(benchmark.+)\.csv$/ => [->(f) { bh.rb_for_csv(f) }]) do |t|
   mkdir_p t.name.pathmap('%d')
   puts "Creating benchmarks for #{t.name}"
@@ -94,6 +102,8 @@ rule(/(benchmark.+)\.csv$/ => [->(f) { bh.rb_for_csv(f) }]) do |t|
   end
 end
 
+# This rule checks to make sure the CSV file for a validation test's results
+# has been loaded into the database
 rule(/(validation.+)\.loaded$/ => [->(f) { vh.csv_for_loaded(f) }]) do |t|
   schema_name = vh.schemas(t.source.pathmap('%{^validation_results/,statements/}p')).first
   create_schema(schema_name)
@@ -105,6 +115,8 @@ rule(/(validation.+)\.loaded$/ => [->(f) { vh.csv_for_loaded(f) }]) do |t|
   touch t.name
 end
 
+# This loop declares that all *.pg files related to benchmarks
+# are dependent upon their appropriate *.sql snippet files
 BENCHMARK_SQL_FILES.pathmap('%d').uniq.each do |dir|
   pg_file = dir.pathmap('%{^tmp/benchmark_sql/,tmp/benchmark_tests/}p.pg')
   sql_files = BENCHMARK_SQL_FILES.select { |p| p.match(dir) }
@@ -114,6 +126,8 @@ BENCHMARK_SQL_FILES.pathmap('%d').uniq.each do |dir|
   end
 end
 
+# This loop declares that all *.pg files related to validations
+# are dependent upon their appropriate *.sql snippet files
 VALIDATION_SQL_FILES.pathmap('%d').uniq.each do |dir|
   pg_file = dir.pathmap('%{^tmp/validation_sql/,tmp/validation_tests/}p.pg')
   sql_files = VALIDATION_SQL_FILES.select { |p| p.match(dir) }

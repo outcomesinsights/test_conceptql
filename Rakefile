@@ -149,10 +149,12 @@ namespace :validate do
 
   task reload_results: [:mark_unloaded, :load_results]
 
+  desc 'loads validation data into database'
   task load_data: [:environment] do
     vh.load_data
   end
 
+  desc 'destroys validation database and reloads data'
   task reload_data: [:environment] do
     if ENV['OVERRIDE']
       vh.load_data!
@@ -161,10 +163,12 @@ namespace :validate do
     end
   end
 
+  desc 'runs pg_prove on validation tests'
   task test: [:environment, :load_results] + VALIDATION_TEST_FILES do
     sh "pg_prove -d #{ENV['DBNAME']} -r tmp/validation_tests"
   end
 
+  desc 'removes all validation schemas from the database'
   task clobber_db: [:environment, :mark_unloaded] do
     drop_schemas_like('_pgt_v%')
   end
@@ -172,14 +176,17 @@ end
 
 task benchmark: 'benchmark:test'
 namespace :benchmark do
+  desc 'run the benchmark tests'
   task test: [:environment] + BENCHMARK_RESULT_FILES + BENCHMARK_TEST_FILES do
     sh "pg_prove -d #{ENV['DBNAME']} -r tmp/benchmark_tests"
   end
 
+  desc 'loads benchmark data into database'
   task load_data: [:environment] do
     bh.load_data
   end
 
+  desc 'destroys benchmark database and reloads data'
   task reload_data: [:environment] do
     if ENV['OVERRIDE']
       bh.load_data!
@@ -192,6 +199,7 @@ namespace :benchmark do
     sh "find statements -name '#{args[:pattern]}' -type d | xargs -n 1 -I{} find {} -name '*.rb' | xargs touch"
   end
 
+  desc 'snapshots all current benchmark results into a single file'
   task :report do
     require 'csv'
     mkdir_p 'reports'

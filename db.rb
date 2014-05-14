@@ -46,7 +46,7 @@ class MyCLI < Thor
     db.execute("ANALYZE #{table_name.to_s.gsub('__', '.')}")
     puts "Capturing explain before index change"
     File.write('/tmp/new.txt', _explain(file_path))
-    system('vimdiff /tmp/{orig,new}.txt')
+    system('vimdiff /tmp/orig.txt /tmp/new.txt')
     puts "Like what you saw?  Type 'keep' to keep the index."
     unless $stdin.gets.chomp.downcase == 'keep'
       puts "Dropping index"
@@ -59,12 +59,16 @@ class MyCLI < Thor
     start_time = Time.now
     db.execute("SET search_path TO #{schema}")
     db.tables.each do |table|
-      db.schema(table).select { |column_name, column_info| column_name.to_s =~ /_id$/ }.each do |column_name, column_info|
+      db.schema(table).select { |column_name, column_info| column_name.to_s =~ /(_id|_value)$/ }.each do |column_name, column_info|
         puts "Indexing #{table}'s #{column_name}"
         db.add_index(table, column_name, ignore_errors: true)
       end
     end
-    puts "Seems to be indexed already" if Time.now - start_time < 10
+    if Time.now - start_time < 10
+      puts "Seems to be indexed already"
+    else
+      db.execute('ANALYZE')
+    end
   end
 
 private

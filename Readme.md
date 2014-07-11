@@ -129,3 +129,8 @@ The most interesting feature of db.rb is the "try_index" command.  Give this com
 - Lock-in the validation results
 - Hash benchmark results to make sure the query fetches what we expect
     - Is this something I do once, like the first time, or for every iteration in a benchmark test?
+
+## Thanks
+- [Outcomes Insights, Inc.](http://outins.com)
+    - Many thanks for allowing me to release a portion of my work as Open Source Software!
+

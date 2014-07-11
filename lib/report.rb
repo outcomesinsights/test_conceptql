@@ -25,18 +25,19 @@ class Report
     common_labels = us.keys & them.keys
     my_labels = us.keys - common_labels
     their_labels = them.keys - common_labels
-    results = common_labels.map do |label|
+    results = [['Test', report.file, file, report.file + ' vs ' + file]]
+    results += common_labels.map do |label|
       my_time = us[label].first.to_f
       their_time = them[label].first.to_f
-      [label, my_time, their_time, their_time / my_time]
+      [label, their_time, my_time, their_time / my_time]
     end
     results += my_labels.map do |label|
       my_time = us[label].first.to_f
-      [label, my_time, nil, nil]
+      [label, nil, my_time, nil]
     end
     results += their_labels.map do |label|
       their_time = them[label].first.to_f
-      [label, nil, their_time, nil]
+      [label, their_time, nil, nil]
     end
     results
   end

@@ -1,8 +1,7 @@
 source 'https://rubygems.org'
 
-gem 'conceptql', path: '../conceptql'
-gem 'dotenv'
+gem 'conceptql'
+gem 'sequelizer'
 gem 'pg'
 gem 'rake'
-gem 'sequel'
 gem 'thor'

@@ -1,11 +1,11 @@
 require 'thor'
 require 'sequel'
-require_relative 'lib/db'
+require 'sequelizer'
 require_relative 'lib/conceptqlizer'
 require_relative 'lib/pbcopeez'
 
 class MyCLI < Thor
-  include DB
+  include Sequelizer
   include ConceptQLizer
   include Pbcopeez
 

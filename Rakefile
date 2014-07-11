@@ -1,15 +1,13 @@
 Rake.application.options.trace_rules = true
 
-require 'sequel'
-require 'dotenv'
 require 'csv'
 require 'conceptql/query'
 require 'rake/clean'
-require_relative 'lib/db'
+require 'sequelizer'
 require_relative 'lib/conceptqlizer'
 require_relative 'lib/pbcopeez'
 
-include DB
+include Sequelizer
 include ConceptQLizer
 include Pbcopeez
 
@@ -331,7 +329,7 @@ class MyHelper
 
   def env_or_bust(var_name)
     value = ENV[var_name]
-    raise "Please #{var_name} in .env" unless value
+    raise "Please define #{var_name} in .env" unless value
     value
   end
 

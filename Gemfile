@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 
-gem 'conceptql'
+gem 'conceptql', path: '../conceptql'
 gem 'sequelizer'
 gem 'pg'
 gem 'rake'

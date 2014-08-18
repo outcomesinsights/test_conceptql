@@ -11,6 +11,7 @@ module ConceptQLizer
   end
 
 private
+=begin
   def _columns
     %w(
       person_id
@@ -32,5 +33,9 @@ private
     _columns.map do |column|
       Sequel.asc(column, nulls: :first)
     end
+  end
+=end
+  def _order_columns
+    [:person_id, :criterion_type, :criterion_id, :start_date, :end_date]
   end
 end

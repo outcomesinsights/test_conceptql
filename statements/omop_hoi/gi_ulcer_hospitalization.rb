@@ -1,4 +1,4 @@
-### GI Ulcer Hospitalization 2 (5000001002)
+# OMOP HOI: GI Ulcer Hospitalization 2 (5000001002)
 # - Occurrence of GI Ulcer diagnostic code
 # - Hospitalization at time of diagnostic code
 # - At least one diagnostic procedure during same hospitalization

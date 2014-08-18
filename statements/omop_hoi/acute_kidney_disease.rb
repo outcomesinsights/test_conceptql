@@ -1,4 +1,4 @@
-# Acute Kidney disease
+# OMOP HOI: Acute Kidney disease
 #
 #- ICD-9 of 584
 #- AND

@@ -48,12 +48,14 @@ end
 # This rule takes a validation ConceptQL statement and creates a snippet of SQL to run
 # the query in a "results_eq" pgTAP test
 rule(/(validation.+)\.sql/ => [->(f) { vh.rb_for_sql(f) }]) do |t|
-  query = ordered_cql_query(t.source)
+  #query = ordered_cql_query(t.source)
   all_paths = vh.paths(t.source)
   schema_name = all_paths.first
-  results_query = db.from(vh.results_table_name(schema_name))
-  output = ["SET search_path TO #{all_paths.join(',')};"]
-  output << db.select(Sequel.function(:results_eq, query.sql, results_query.sql, db.literal(t.source.pathmap('%-1d/%n')))).sql + ';'
+  #results_query = db.from(vh.results_table_name(schema_name))
+  output = []
+  output << %Q{db.execute("SET search_path TO #{all_paths.join(',')}")}
+  output << %Q{set_eq(ordered_cql_query('#{t.source}'), db.from(%q{#{vh.results_table_name(schema_name)}}.to_sym), %q{#{t.source.pathmap('%-1d/%n')}})}
+  #output << %Q{set_eq(db[%q{#{query.sql}}], db[%q{#{results_query.sql}}], %q{#{t.source.pathmap('%-1d/%n')}})}
   mkdir_p t.name.pathmap('%d')
   File.write(t.name, output.join("\n"));
 end
@@ -64,8 +66,8 @@ rule(/(benchmark.+)\.sql/ => [->(f) { bh.rb_for_sql(f) }]) do |t|
   query = cql_query(t.source)
   desired_average = bh.desired_average_for(t.source)
   standard_deviation = [bh.standard_deviation_for(t.source) * 2, desired_average / 10].max
-  output = ["SET search_path TO #{bh.paths(t.source).join(',')};"]
-  output << db.select(Sequel.function(:performs_within, query.sql, desired_average, standard_deviation, 10, db.literal(t.source.pathmap('%-1d/%n')))).sql + ';'
+  output = [%Q{db.execute("SET search_path TO #{bh.paths(t.source).join(',')}");}]
+  output << %Q{performs_within(db[%Q{#{query.sql}}, #{desired_average}, #{standard_deviation}, '#{t.source.pathmap('%-1d/%n')}'])}
   mkdir_p t.name.pathmap('%d')
   File.write(t.name, output.join("\n"));
 end
@@ -163,7 +165,7 @@ namespace :validate do
 
   desc 'runs pg_prove on validation tests'
   task test: [:environment, :load_results] + VALIDATION_TEST_FILES do
-    sh "pg_prove -d #{ENV['DBNAME']} -r tmp/validation_tests"
+    sh "bundle exec ../dbtap/bin/dbtap run_test #{Rake::FileList.new('tmp/validation_tests/*.pg')}"
   end
 
   desc 'removes all validation schemas from the database'
@@ -261,12 +263,15 @@ end
 
 def make_pg_tap_test_file(pg_file, sql_files)
   mkdir_p pg_file.pathmap('%d')
+  path = Pathname.pwd
   File.open(pg_file, 'w') do |f|
-    f.puts "select plan(#{sql_files.length});"
+    f.puts "define_tests do"
+    f.puts "require '#{path.expand_path + 'lib' + 'conceptqlizer'}'"
+    f.puts "self.class.send(:include, ConceptQLizer)"
     sql_files.each do |sql_file|
       f.puts File.read(sql_file)
     end
-    f.puts "select * from finish();"
+    f.puts "end"
   end
 end
 

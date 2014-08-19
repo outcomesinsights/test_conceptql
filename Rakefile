@@ -231,6 +231,52 @@ namespace :db do
   end
 end
 
+task :convert_results do
+  keys = %w(
+    condition_occurrence
+    death
+    drug_cost
+    drug_exposure
+    observation
+    procedure_cost
+    procedure_occurrence
+    visit_occurrence
+  )
+  Pathname.new('validation_results').children.each do |child|
+    child.children.select { |c| c.to_s =~ /\.csv.old$/ }.each do |csv_file|
+      new_rows = CSV.readlines(csv_file, headers: true).map do |row|
+        h = {
+          'person_id' => row['person_id']
+        }
+
+        keys.each do |key|
+          id = key + '_id'
+          if row[id]
+            h['criterion_id'] = row[id]
+            h['criterion_type'] = key
+          end
+        end
+
+        unless h['criterion_type']
+          h['criterion_id'] = row['person_id']
+          h['criterion_type'] = 'person'
+        end
+
+        h['start_date'] = row['start_date']
+        h['end_date'] = row['end_date']
+
+        h
+      end
+      CSV.open(csv_file.to_s.sub(/\.old$/, ''), 'w') do |csv|
+        csv << %w(person_id criterion_id criterion_type start_date end_date)
+        new_rows.each do |row|
+          csv << row.values
+        end
+      end
+    end
+  end
+end
+
 #########################################
 # Utility functions
 #########################################
@@ -328,8 +374,10 @@ class MyHelper
   end
 
   def make_views
+=begin
     require 'conceptql/view_maker'
     ConceptQL::ViewMaker.make_views(db, dbschema)
+=end
   end
 
   def env_or_bust(var_name)

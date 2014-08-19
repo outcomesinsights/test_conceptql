@@ -293,7 +293,6 @@ class MyHelper
   def reload_schema
     destroy_schema
     load_schema
-    make_views
   end
 
   def destroy_schema
@@ -325,13 +324,6 @@ class MyHelper
     db.execute("SET search_path TO #{dbschema}")
     Sequel.extension :migration
     Sequel::Migrator.run(db, 'schemas', target: 2)
-  end
-
-  def make_views
-=begin
-    require 'conceptql/view_maker'
-    ConceptQL::ViewMaker.make_views(db, dbschema)
-=end
   end
 
   def env_or_bust(var_name)

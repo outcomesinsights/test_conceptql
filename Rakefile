@@ -367,15 +367,8 @@ class ValidationHelper < MyHelper
   def create_results_table(schema_name)
     db.create_table!(results_table_name(schema_name)) do
       Bignum :person_id
-      Bignum :condition_occurrence_id
-      Bignum :death_id
-      Bignum :drug_cost_id
-      Bignum :drug_exposure_id
-      Bignum :observation_id
-      Bignum :payer_plan_period_id
-      Bignum :procedure_cost_id
-      Bignum :procedure_occurrence_id
-      Bignum :visit_occurrence_id
+      Bignum :criterion_id
+      String :criterion_type
       Date   :start_date
       Date   :end_date
     end

@@ -1,4 +1,0 @@
-person_id,condition_occurrence_id,death_id,drug_cost_id,drug_exposure_id,observation_id,payer_plan_period_id,procedure_cost_id,procedure_occurrence_id,visit_occurrence_id,start_date,end_date
-53,5751,,,,,,,,,2008-06-05,2008-06-05
-180,21006,,,,,,,,,2008-01-07,2008-01-07
-207,24721,,,,,,,,,2008-02-17,2008-02-17

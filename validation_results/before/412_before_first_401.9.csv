@@ -1,0 +1,4 @@
+person_id,criterion_id,criterion_type,start_date,end_date
+53,5751,condition_occurrence,2008-06-05,2008-06-05
+180,21006,condition_occurrence,2008-01-07,2008-01-07
+207,24721,condition_occurrence,2008-02-17,2008-02-17

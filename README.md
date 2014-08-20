@@ -1,7 +1,7 @@
 # Test ConceptQL
 These tests validate and/or benchmark the ConceptQL language.
 
-The tests are run using pgTAP 0.95+.  The pgTAP test files themselves are generated using Ruby's Rake.  See Rake section for more details.
+The tests are run using [dbtap](https://github.com/outcomesinsights/dbtap).  The dbtap test files themselves are generated using Ruby's Rake.  See Rake section for more details.
 
 
 ## Structure
@@ -46,14 +46,14 @@ The tests are run using pgTAP 0.95+.  The pgTAP test files themselves are genera
 
 ## Files of interest
 - \*.pg
-    - .pg files contain the actual pgTAP tests that are run against the test database via pg_prove
+    - .pg files contain the actual dbtap tests that are run against the test database via the dbtap command
     - They live somewhere in the tmp directory
 
 
 ### Validation Tests
 Validation tests run against a sample of 250 patients and their data.  For every validation statement we:
 - Convert the ConceptQL statement into an SQL query
-- Put the query into a "results_eq" pgTAP test
+- Put the query into a "set_eq" dbtap test
 - Check to see if the test results are in the database and if not
     - Create a schema to store the expected results for the test
     - Check to see if the results CSV file is present and if not
@@ -62,9 +62,9 @@ Validation tests run against a sample of 250 patients and their data.  For every
             - This is madness, but it allowed us to bootstrap the validation testing process quickly
             - Others are working on generating an independent set of results that we'll ultimately use
     - Load the CSV contents into the database
-- Put the pgTAP test into a \*.pg file along with other related validation tests
+- Put the dbtap test into a \*.pg file along with other related validation tests
 
-Once the \*.pg files are generated, we use pg_prove to run the test suite against the database
+Once the \*.pg files are generated, we use the dbtap command to run the test suite against the database
 
 For the commands to execute this process, see the Rake section
 
@@ -79,16 +79,16 @@ Benchmark tests run against a sample of ~113,000 patients and their data.  For e
             - Benchmark tests are dependent upon the hardware/PostgreSQL configuration of the server they are run on
             - This makes benchmark test results very ephemeral
             - The primary goal of benchmark tests are to ensure that changes to the database/ConceptQL SQL-generating engine don't introduce poor performing queries
-- Put the query and expected execution time from the CSV file into a "performs_within" pgTAP test
-- Put the pgTAP test into a \*.pg file along with other related validation tests
+- Put the query and expected execution time from the CSV file into a "performs_within" dbtap test
+- Put the dbtap test into a \*.pg file along with other related validation tests
 
-Once the \*.pg files are generated, we use pg_prove to run the test suite against the database
+Once the \*.pg files are generated, we use the dbtap command to run the test suite against the database
 
 For the commands to execute this process, see the Rake section
 
 
 ## Rake
-Rake (Ruby's "make" program) drives the creation and execution of the pgTAP tests that we run.  Run: ``bundle exec rake -T`` to see the list of possible commands you can execute.
+Rake (Ruby's "make" program) drives the creation and execution of the dbtap tests that we run.  Run: ``bundle exec rake -T`` to see the list of possible commands you can execute.
 
 The default behavior of rake (e.g. ``bundle exec rake`` with no arguments) is to run the validation and benchmark tests.
 

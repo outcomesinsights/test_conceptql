@@ -24,10 +24,10 @@
   },
   {
     after: {
-      left: { from: 'HIV Visit' },
+      left: { recall: 'HIV Visit' },
       right: {
         time_window: [
-          { from: 'HIV Visit' },
+          { recall: 'HIV Visit' },
           { start: '0', end: '90d' }
         ]
       },

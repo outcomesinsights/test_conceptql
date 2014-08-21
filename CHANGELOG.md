@@ -1,6 +1,23 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Added
+- Nothing.
+
+### Deprecated
+- Nothing.
+
+### Removed
+- Nothing.
+
+### Fixed
+- Bug where load_data tasks always ran, even if data was loaded.
+- Benchmark tests had bugs related to pgTAP => dbtap conversion.
+
+
+
 ## 0.0.2 - 2014-08-19
 
 ### Added

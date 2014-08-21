@@ -345,7 +345,7 @@ class MyHelper
   def data_loaded?
     db.execute("SET search_path TO #{dbschema}")
     begin
-      db[:death_with_dates].count == expected_death_count
+      db[:death].count == expected_death_count
     rescue Sequel::DatabaseError
       return false if $!.message =~ /UndefinedTable/
       raise

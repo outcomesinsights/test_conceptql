@@ -369,6 +369,9 @@ class ValidationHelper < MyHelper
       String :criterion_type
       Date   :start_date
       Date   :end_date
+      Bignum :value_as_numeric
+      String :value_as_string
+      Bignum :value_as_concept_id
     end
   end
 

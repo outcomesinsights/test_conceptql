@@ -1,1 +1,1 @@
-person_id,criterion_id,criterion_type,start_date,end_date
+person_id,criterion_id,criterion_type,start_date,end_date,value_as_numeric,value_as_string,value_as_concept_id

@@ -1,10 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.0.3 - 2014-10-30
 
 ### Added
-- Nothing.
+- Test for OneInTwoOut operation.
+- Updated Gemfile.
 
 ### Deprecated
 - Nothing.
@@ -15,7 +16,6 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Bug where load_data tasks always ran, even if data was loaded.
 - Benchmark tests had bugs related to pgTAP => dbtap conversion.
-
 
 
 ## 0.0.2 - 2014-08-19

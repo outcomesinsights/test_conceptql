@@ -12,7 +12,7 @@
       'Inpatient Heart Attack',
       {
         intersect: [
-          { from: 'Heart Attack Visit'},
+          { recall: 'Heart Attack Visit'},
           { place_of_service_code: 21 }
         ]
       }
@@ -24,10 +24,10 @@
       'Outpatient Heart Attack',
       {
         intersect: [
-          { from: 'Heart Attack Visit'},
+          { recall: 'Heart Attack Visit'},
           {
             complement: {
-              place_of_service_code: 23
+              place_of_service_code: 21
             }
           }
         ]
@@ -40,10 +40,10 @@
       'Earlier of Two Outpatient Heart Attacks',
       {
         before: {
-          left: { from: 'Outpatient Heart Attack' },
+          left: { recall: 'Outpatient Heart Attack' },
           right: {
             time_window: [
-              { from: 'Outpatient Heart Attack' },
+              { recall: 'Outpatient Heart Attack' },
               { start: '-30d', end: '0' }
             ]
           }
@@ -55,8 +55,8 @@
   {
     first: {
       union: [
-        { from: 'Inpatient Heart Attack' },
-        { from: 'Earlier of Two Outpatient Heart Attacks'}
+        { recall: 'Inpatient Heart Attack' },
+        { recall: 'Earlier of Two Outpatient Heart Attacks'}
       ]
     }
   }

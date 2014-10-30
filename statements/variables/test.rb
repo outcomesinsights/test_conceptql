@@ -18,9 +18,9 @@ office_visits = {
   heart_attack,
   office_visits,
   {
-    after: {
-      left: { from: 'heart attack' },
-      right: { from: 'office visits' }
+    during: {
+      left: { recall: 'heart attack' },
+      right: { recall: 'office visits' }
     }
   }
 ]

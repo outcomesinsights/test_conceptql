@@ -7,9 +7,9 @@
 # place of service all occur in the same visit_occurrence
 
 {
-  union: [
+  intersect: [
     { place_of_service_code: '21' },
-    { visit_occurrence: { icd9: '410' } },
+    { visit_occurrence: { icd9: %W(410.00 410.01) } },
     {
       visit_occurrence: {
         union: [

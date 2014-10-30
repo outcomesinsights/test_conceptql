@@ -1,5 +1,6 @@
 Rake.application.options.trace_rules = true
 
+require 'benchmark'
 require 'csv'
 require 'conceptql/query'
 require 'rake/clean'
@@ -63,11 +64,10 @@ end
 # This rule takes a benchmark ConceptQL statement and creates a snippet of SQL to run
 # the query in a "performs_within" pgTAP test
 rule(/(benchmark.+)\.sql/ => [->(f) { bh.rb_for_sql(f) }]) do |t|
-  query = cql_query(t.source)
   desired_average = bh.desired_average_for(t.source)
   standard_deviation = [bh.standard_deviation_for(t.source) * 2, desired_average / 10].max
   output = [%Q{db.execute("SET search_path TO #{bh.paths(t.source).join(',')}");}]
-  output << %Q{performs_within(db[%Q{#{query.sql}}, #{desired_average}, #{standard_deviation}, '#{t.source.pathmap('%-1d/%n')}'])}
+  output << %Q{performs_within(cql_query('#{t.source}'), #{desired_average}, #{standard_deviation}, '#{t.source.pathmap('%-1d/%n')}')}
   mkdir_p t.name.pathmap('%d')
   File.write(t.name, output.join("\n"));
 end
@@ -90,15 +90,19 @@ end
 # and runs it 10 times to get an average and standard deviation for the execution time
 rule(/(benchmark.+)\.csv$/ => [->(f) { bh.rb_for_csv(f) }]) do |t|
   mkdir_p t.name.pathmap('%d')
+  iterations = 10
   puts "Creating benchmarks for #{t.name}"
   db.execute("SET search_path TO #{bh.paths(t.source).join(',')};")
-  rows = db.from(Sequel.function(:_time_trials, cql_query(t.source).sql, 10, 0.8))
-           .select(Sequel.function(:avg, :a_time), Sequel.function(:stddev, :a_time)).all
-  puts rows.first.values
-  CSV.open(t.name, 'w') do |csv|
-    rows.each do |row|
-      csv << row.values
+  query = cql_query(t.source)
+  elapsed = Benchmark.realtime do
+    iterations.times do
+      query.count
     end
+  end
+  avg = elapsed.to_f / iterations
+  puts "#{avg} average time elapsed"
+  CSV.open(t.name, 'w') do |csv|
+    csv << [avg, avg / 3]
   end
 end
 
@@ -165,7 +169,7 @@ namespace :validate do
 
   desc 'runs pg_prove on validation tests'
   task test: [:environment, :load_results] + VALIDATION_TEST_FILES do
-    sh "bundle exec ../dbtap/bin/dbtap run_test #{Rake::FileList.new('tmp/validation_tests/*.pg')}"
+    sh "bundle exec dbtap run_test #{Rake::FileList.new('tmp/validation_tests/*.pg')}"
   end
 
   desc 'removes all validation schemas from the database'
@@ -178,7 +182,7 @@ task benchmark: 'benchmark:test'
 namespace :benchmark do
   desc 'run the benchmark tests'
   task test: [:environment] + BENCHMARK_RESULT_FILES + BENCHMARK_TEST_FILES do
-    sh "pg_prove -d #{ENV['DBNAME']} -r tmp/benchmark_tests"
+    sh "bundle exec dbtap run_test #{Rake::FileList.new('tmp/benchmark_tests/*.pg')}"
   end
 
   desc 'loads benchmark data into database'
@@ -345,7 +349,7 @@ class MyHelper
   def data_loaded?
     db.execute("SET search_path TO #{dbschema}")
     begin
-      db[:death_with_dates].count == expected_death_count
+      db[:death].count == expected_death_count
     rescue Sequel::DatabaseError
       return false if $!.message =~ /UndefinedTable/
       raise
@@ -365,6 +369,9 @@ class ValidationHelper < MyHelper
       String :criterion_type
       Date   :start_date
       Date   :end_date
+      Bignum :value_as_numeric
+      String :value_as_string
+      Bignum :value_as_concept_id
     end
   end
 

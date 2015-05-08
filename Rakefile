@@ -24,7 +24,7 @@ CLEAN.include(BENCHMARK_SQL_FILES)
 
 VALIDATION_RESULT_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,validation_results/}X.csv')
 VALIDATION_RESULT_FILES.exclude do |f|
-  `git ls-files #{f}`.present?
+  !(`git ls-files #{f}`).empty?
 end
 
 BENCHMARK_RESULT_FILES = BENCHMARK_STATEMENT_FILES.pathmap('%{^statements*/,benchmark_results/}X.csv')

@@ -14,7 +14,8 @@ office_visits = {
   ]
 }
 
-[
+{
+let: [
   heart_attack,
   office_visits,
   {
@@ -24,3 +25,5 @@ office_visits = {
     }
   }
 ]
+
+}

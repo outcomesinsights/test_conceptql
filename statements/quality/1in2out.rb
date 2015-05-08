@@ -1,5 +1,6 @@
 #1 inpatient, or 2 outpatient diagnoses separated by 30 days, common pattern for claims data
-[
+{
+let: [
   {
     define: [
       'Heart Attack Visit',
@@ -61,3 +62,5 @@
     }
   }
 ]
+
+}

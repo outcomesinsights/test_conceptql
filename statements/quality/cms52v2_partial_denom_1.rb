@@ -1,5 +1,6 @@
 #CMS52v2, Portion of Denominator 1 - Occurrence A and B of HIV Visit
-[
+{
+let: [
   {
     define: [
       'HIV Visit',
@@ -34,3 +35,5 @@
     }
   }
 ]
+
+}

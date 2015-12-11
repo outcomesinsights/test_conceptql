@@ -13,7 +13,7 @@ module ConceptQLizer
   end
 
   def ordered_cql_query(file, schema = nil)
-    cql_query(file, schema).order(*_order_columns)
+    cql_query(file, schema).from_self.order(*_order_columns)
   end
 
 private

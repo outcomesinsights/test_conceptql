@@ -1,10 +1,9 @@
 PATH
   remote: ../conceptql
   specs:
-    conceptql (0.1.1)
-      csv2xlsx
-      facets (~> 3.0.0)
-      pg (~> 0.17)
+    conceptql (0.2.0)
+      csv2xlsx (~> 0)
+      facets (~> 3.0)
       ruby-graphviz (~> 1.2)
       sequelizer (~> 0.0)
       thor (~> 0.19)
@@ -16,58 +15,76 @@ PATH
       sequelizer (~> 0.0, >= 0.0.3)
       thor (~> 0.19)
 
+PATH
+  remote: ../sequel
+  specs:
+    sequel (4.28.0)
+
+PATH
+  remote: ../sequel-impala
+  specs:
+    sequel-impala (1.0.0)
+      sequel
+      thrift (~> 0.9.1)
+
+PATH
+  remote: ../sequelizer
+  specs:
+    sequelizer (0.0.6)
+      dotenv (~> 0.11)
+      hashie (~> 3.2)
+      sequel (~> 4.12)
+      thor (~> 0.19)
+
 GEM
   remote: https://rubygems.org/
   specs:
-    ansi (1.4.3)
+    ansi (1.5.0)
     axlsx (2.0.1)
       htmlentities (~> 4.3.1)
       nokogiri (>= 1.4.1)
       rubyzip (~> 1.0.0)
-    byebug (4.0.5)
-      columnize (= 0.9.0)
-    columnize (0.9.0)
     csv2xlsx (0.0.1)
       axlsx
     dotenv (0.11.1)
       dotenv-deployment (~> 0.0.2)
     dotenv-deployment (0.0.2)
     facets (3.0.0)
-    hashie (3.2.0)
-    htmlentities (4.3.3)
-    json (1.8.1)
-    loadmop (0.0.3)
+    hashie (3.4.3)
+    htmlentities (4.3.4)
+    json (1.8.3)
+    json (1.8.3-java)
+    loadmop (0.0.5)
       rake (~> 10.3)
-      sequelizer (~> 0.0)
+      sequelizer (>= 0.0.5)
       thor (~> 0.19)
-    mini_portile (0.6.2)
-    nokogiri (1.6.6.2)
-      mini_portile (~> 0.6.0)
-    pg (0.17.1)
-    rake (10.3.2)
-    ruby-graphviz (1.2.1)
+    mini_portile2 (2.0.0)
+    nokogiri (1.6.7)
+      mini_portile2 (~> 2.0.0.rc2)
+    nokogiri (1.6.7-java)
+    rake (10.4.2)
+    ruby-graphviz (1.2.2)
     rubyzip (1.0.0)
-    sequel (4.13.0)
-    sequelizer (0.0.4)
-      dotenv (~> 0.11)
-      hashie (~> 3.2)
-      sequel (~> 4.12)
-      thor (~> 0.19)
     tapout (0.4.5)
       ansi
       json
     thor (0.19.1)
+    thrift (0.9.3.0)
 
 PLATFORMS
+  java
   ruby
 
 DEPENDENCIES
-  byebug
   conceptql!
   dbtap!
   loadmop
-  pg
   rake
-  sequelizer
+  sequel!
+  sequel-impala!
+  sequelizer!
   tapout
   thor
+
+BUNDLED WITH
+   1.10.6

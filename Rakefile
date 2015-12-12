@@ -22,7 +22,7 @@ CLEAN.include(VALIDATION_SQL_FILES)
 BENCHMARK_SQL_FILES = BENCHMARK_STATEMENT_FILES.pathmap('%{^statements*/,tmp/benchmark_sql/}X.sql')
 CLEAN.include(BENCHMARK_SQL_FILES)
 
-VALIDATION_RESULT_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,validation_results/}X.csv')
+VALIDATION_RESULT_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,validation_results/}X/v_results.csv')
 VALIDATION_RESULT_FILES.exclude do |f|
   !(`git ls-files #{f}`).empty?
 end
@@ -30,7 +30,7 @@ end
 BENCHMARK_RESULT_FILES = BENCHMARK_STATEMENT_FILES.pathmap('%{^statements*/,benchmark_results/}X.csv')
 CLOBBER.include(BENCHMARK_RESULT_FILES)
 
-VALIDATION_LOAD_INDICATION_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,tmp/validation_results/}X.loaded')
+VALIDATION_LOAD_INDICATION_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,tmp/validation_results/}X/v_results.loaded')
 CLOBBER.include(VALIDATION_LOAD_INDICATION_FILES)
 
 VALIDATION_TEST_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,tmp/validation_tests/}d.pg')
@@ -54,7 +54,7 @@ rule(/(validation.+)\.sql/ => [->(f) { vh.rb_for_sql(f) }]) do |t|
   schema_name = all_paths.first
   #results_query = db.from(vh.results_table_name(schema_name))
   output = []
-  output << %Q{db.execute("SET search_path TO #{all_paths.join(',')}")}
+  #output << %Q{db.execute("SET search_path TO #{all_paths.join(',')}")}
   output << %Q{set_eq(ordered_cql_query('#{t.source}'), db.from(%q{#{vh.results_table_name(schema_name)}}.to_sym), %q{#{t.source.pathmap('%-1d/%n')}})}
   #output << %Q{set_eq(db[%q{#{query.sql}}], db[%q{#{results_query.sql}}], %q{#{t.source.pathmap('%-1d/%n')}})}
   mkdir_p t.name.pathmap('%d')
@@ -66,7 +66,7 @@ end
 rule(/(benchmark.+)\.sql/ => [->(f) { bh.rb_for_sql(f) }]) do |t|
   desired_average = bh.desired_average_for(t.source)
   standard_deviation = [bh.standard_deviation_for(t.source) * 2, desired_average / 10].max
-  output = [%Q{db.execute("SET search_path TO #{bh.paths(t.source).join(',')}");}]
+  #output = [%Q{db.execute("SET search_path TO #{bh.paths(t.source).join(',')}");}]
   output << %Q{performs_within(cql_query('#{t.source}'), #{desired_average}, #{standard_deviation}, '#{t.source.pathmap('%-1d/%n')}')}
   mkdir_p t.name.pathmap('%d')
   File.write(t.name, output.join("\n"));
@@ -76,7 +76,7 @@ end
 # and records the results from that SQL in a CSV file
 rule(/(validation.+)\.csv$/ => [->(f) { vh.rb_for_csv(f) }]) do |t|
   mkdir_p t.name.pathmap('%d')
-  db.execute("SET search_path TO #{vh.paths(t.source).join(',')};")
+  #db.execute("SET search_path TO #{vh.paths(t.source).join(',')};")
   rows = ordered_cql_query(t.source).tap {|o| pbcopy(o.sql) }.all
   CSV.open(t.name, 'w') do |csv|
     csv << rows.first.keys unless rows.empty?
@@ -92,7 +92,7 @@ rule(/(benchmark.+)\.csv$/ => [->(f) { bh.rb_for_csv(f) }]) do |t|
   mkdir_p t.name.pathmap('%d')
   iterations = 10
   puts "Creating benchmarks for #{t.name}"
-  db.execute("SET search_path TO #{bh.paths(t.source).join(',')};")
+  #db.execute("SET search_path TO #{bh.paths(t.source).join(',')};")
   query = cql_query(t.source)
   elapsed = Benchmark.realtime do
     iterations.times do
@@ -112,9 +112,7 @@ rule(/(validation.+)\.loaded$/ => [->(f) { vh.csv_for_loaded(f) }]) do |t|
   schema_name = vh.schemas(t.source.pathmap('%{^validation_results/,statements/}p')).first
   create_schema(schema_name)
   vh.create_results_table(schema_name)
-  File.open(t.source) do |csv|
-    db.copy_into(vh.results_table_name(schema_name), format: :csv, data: csv, options: 'HEADER')
-  end
+  copy_into(vh.results_table_name(schema_name), t.source)
   mkdir_p t.name.pathmap('%d')
   touch t.name
 end
@@ -174,7 +172,7 @@ namespace :validate do
 
   desc 'removes all validation schemas from the database'
   task clobber_db: [:environment, :mark_unloaded] do
-    drop_schemas_like('_pgt_v%')
+    drop_schemas_like(/^_pgt_v/)
   end
 end
 
@@ -218,10 +216,16 @@ namespace :benchmark do
   end
 end
 
+namespace :vocab do
+  task load: [:environment] do
+    vh.vocab
+  end
+end
+
 namespace :db do
   namespace :clobber do
     task schemas: [:environment, 'validate:mark_unloaded'] do
-      drop_schemas_like('_pgt%')
+      drop_schemas_like(/^_pgt/)
     end
   end
 
@@ -238,31 +242,45 @@ end
 #########################################
 # Utility functions
 #########################################
+def set_path(schema)
+  db.run("USE #{schema};")
+end
 
 def dump_using_schema_path(path)
-  db.execute("SET search_path TO #{path}")
+  #db.execute("SET search_path TO #{path}")
   db.extension :schema_dumper
   puts db.dump_schema_migration
 end
 
 def create_schema(name)
-  db.execute("CREATE SCHEMA #{name};")
+  db.create_schema(name)
 rescue Sequel::DatabaseError
-  raise unless $!.message =~ /DuplicateSchema/
-rescue PG::DuplicateSchema
-  # This is find with me.  Do nothing
+  raise unless $!.message =~ /DuplicateSchema/ || $!.message =~ /Database already exists/
+#rescue PG::DuplicateSchema
+  # This is fine with me.  Do nothing
 end
 
 def drop_schemas_like(schema_pattern)
-  db[:information_schema__schemata].where(Sequel.like(:schema_name, schema_pattern)).select_map(:schema_name).each do |schema|
+  db.fetch('SHOW DATABASES;').each do |db_entry|
+    schema = db_entry[:name]
+    next unless schema =~ schema_pattern
     begin
-      db.execute("DROP SCHEMA #{schema} CASCADE")
+      drop_schema(schema)
     rescue Sequel::DatabaseError
       raise unless $!.message =~ /InvalidSchemaName/
-    rescue PG::InvalidSchemaName
-      # This is find with me.  Do nothing
+    #rescue PG::InvalidSchemaName
+      # This is fine with me.  Do nothing
     end
   end
+end
+
+def drop_schema(schema)
+  set_path(schema)
+  db.tables.each do |table|
+    db.drop_table(table, if_exists: true)
+  end
+  set_path(:default)
+  db.drop_schema(schema, if_exists: true)
 end
 
 def make_pg_tap_test_file(pg_file, sql_files)
@@ -272,9 +290,18 @@ def make_pg_tap_test_file(pg_file, sql_files)
     f.puts "define_tests do"
     f.puts "require '#{path.expand_path + 'lib' + 'conceptqlizer'}'"
     f.puts "self.class.send(:include, ConceptQLizer)"
+    f.puts "db.execute('use _validation1;')"
+    f.puts "db.extension :error_sql"
+    f.puts "begin"
     sql_files.each do |sql_file|
       f.puts File.read(sql_file)
     end
+    f.puts "rescue"
+    f.puts 'puts "Error in #{sql_file}:"'
+    f.puts "puts $!.message"
+    f.puts "puts $!.sql if $!.respond_to?(:sql)"
+    f.puts "raise $!"
+    f.puts "end"
     f.puts "end"
   end
 end
@@ -287,7 +314,103 @@ def bh
   @bh ||= BenchmarkHelper.new
 end
 
+def copy_into(table, csv_file)
+  #db.extend Sequel::CsvToParquet
+  db.extension :csv_to_parquet
+  db.load_csv(csv_file, table.to_sym, empty_null: :ruby)
+=begin
+  headers = CSV.parse(File.open(csv_file, &:readline)).first.map(&:downcase).map(&:to_sym)
+
+  puts `wc -l #{csv_file}`
+  csv_file.gsub!(%r|^/tmp|, '/user/cloudera')
+  csv_file.gsub!(%r|^/home/cloudera|, '/user/cloudera')
+  csv_file.gsub!(%r|^validation_results|, '/user/cloudera/validation_results')
+  csv_file.gsub!(/^/, '/user/cloudera/sample_validation_data/') if csv_file !~ %r|^/|
+  if csv_file =~ /cleaned/
+    csv_file.gsub!(/cleaned/, 'split')
+    csv_file.gsub!(/\.csv$/, '')
+  end
+  csv_file.gsub!(%r|/v_results.csv$|, '')
+  puts csv_file
+
+  db.create_schema(:copy_staging, if_not_exists: true)
+  sch = Hash[db.schema(table)]
+  staging_table = table.to_s.split('__').last
+  staging_table = ("copy_staging__" + staging_table).to_sym
+  db.create_table!(staging_table, location: csv_file, field_term: ",", line_term: "\n", table_properties: '"skip.header.line.count"="1"') do |gen|
+    headers.each do |header|
+      orig_opts = sch[header]
+      #puts header
+      #puts orig_opts
+      type = orig_opts[:type]
+      #puts type
+      type_klass = [db.schema_type_class(type)].flatten.last
+      #puts type_klass.inspect
+      opts = {}
+      case type
+      when :string
+        if orig_opts[:column_size] < 10
+          opts.merge!(size: orig_opts[:column_size], fixed: true)
+        end
+      end
+      #puts opts.inspect
+      #send(sch[header][:type], header)
+      gen.column(header, type_klass, opts)
+    end
+  end
+
+  #db.load_data(csv_file, staging_table, overwrite: true)
+
+  puts "staging_table #{db[staging_table].count} #{db[staging_table].limit(5).all}"
+
+  db[table].insert(headers, db[staging_table])
+=end
+
+=begin
+  puts db["LOAD DATA INPATH ? OVERWRITE INTO TABLE ?", csv_file, table].sql
+  db["LOAD DATA INPATH ? OVERWRITE INTO TABLE ?", csv_file, table].all
+  table_specs = db.schema(table.to_sym)
+  types = table_specs.each_with_object({}) do |spec, hash|
+    hash[spec.first] = spec.last[:type]
+  end
+  csv = CSV.read(csv_file, headers: true)
+  rows = []
+  puts types
+  puts csv.headers
+  csv.each do |row|
+    r = []
+    csv.headers.each do |header|
+      case types[header.downcase.to_sym]
+      when :integer
+        r << (row[header].nil? ? nil : row[header].to_i)
+      when :float, :double
+        r << (row[header].nil? ? nil : row[header].to_f)
+      when :string, :timestamp, :datetime
+        r << (row[header].nil? ? nil : row[header])
+      else
+        raise "fail: #{header}: #{types[header.downcase.to_sym.inspect]}"
+      end
+    end
+    rows << r
+  end
+  puts "Data prepped, issuing import command of #{rows.length} rows"
+  db[table].import(csv.headers, rows)
+=end
+end
+
 class MyHelper
+  def vocab
+    db.create_schema(:vocabulary, if_not_exists: true)
+    Creator.new.create_vocab_tables(:vocabulary)
+    load_vocabs
+  end
+
+  def load_vocabs
+    %w(concept concept_ancestor concept_relationship concept_synonym relationship source_to_concept_map vocabulary).each do |fname|
+      copy_into("vocabulary__#{fname}".to_sym, "/home/cloudera/omop_vocab_4.3/cleaned/#{fname}.csv")
+    end
+  end
+
   def reload_data
     reload_schema
     import_data
@@ -301,14 +424,13 @@ class MyHelper
 
   def destroy_schema
     puts "Completely destroying and rebuilding #{ENV['DBNAME']}'s #{dbschema}"
-    drop_schemas_like(dbschema)
+    drop_schemas_like(Regexp.new(dbschema))
     create_schema(dbschema)
   end
 
   def load_schema
-    db.execute("SET search_path TO #{dbschema}")
-    Sequel.extension :migration
-    Sequel::Migrator.run(db, 'schemas', target: 1)
+    set_path(dbschema)
+    Creator.new.create_tables(dbschema)
   end
 
   def import_data
@@ -317,17 +439,15 @@ class MyHelper
         file_name = table + '.csv'
         table_name = "#{dbschema}__#{table}".to_sym
         puts "Importing into #{table_name}"
-        File.open(file_name) do |csv|
-          db.copy_into(table_name, format: :csv, data: csv, options: 'HEADER')
-        end
+        copy_into(table_name, file_name)
       end
     end
   end
 
   def add_indexes
-    db.execute("SET search_path TO #{dbschema}")
-    Sequel.extension :migration
-    Sequel::Migrator.run(db, 'schemas', target: 2)
+    #db.execute("SET search_path TO #{dbschema}")
+    #Sequel.extension :migration
+    #Sequel::Migrator.run(db, 'schemas', target: 2)
   end
 
   def env_or_bust(var_name)
@@ -347,7 +467,7 @@ class MyHelper
   end
 
   def data_loaded?
-    db.execute("SET search_path TO #{dbschema}")
+    set_path(dbschema)
     begin
       db[:death].count == expected_death_count
     rescue Sequel::DatabaseError
@@ -359,6 +479,7 @@ class MyHelper
   def load_data!
     reload_data
   end
+
 end
 
 class ValidationHelper < MyHelper
@@ -367,8 +488,8 @@ class ValidationHelper < MyHelper
       Bignum :person_id
       Bignum :criterion_id
       String :criterion_type
-      Date   :start_date
-      Date   :end_date
+      DateTime   :start_date
+      DateTime   :end_date
       Bignum :value_as_numeric
       String :value_as_string
       Bignum :value_as_concept_id
@@ -380,8 +501,8 @@ class ValidationHelper < MyHelper
   end
 
   def rb_for_csv(csv_file)
-    VALIDATION_STATEMENT_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^validation_results/,statements/}X') } ||
-    VALIDATION_STATEMENT_FILES.detect { |f| f.ext('') == csv_file.pathmap('%{^validation_results/,statements_for_validation/}X') }
+    VALIDATION_STATEMENT_FILES.detect { |f| f.pathmap('%X') == csv_file.pathmap('%{^validation_results/,statements/}d') } ||
+    VALIDATION_STATEMENT_FILES.detect { |f| f.pathmap('%X') == csv_file.pathmap('%{^validation_results/,statements_for_validation/}d') }
   end
 
   def rb_for_sql(sql_file)
@@ -394,7 +515,8 @@ class ValidationHelper < MyHelper
     Pathname.new(source_file.pathmap('%{^statements*/,v/}X')).each_filename do |part|
       schemas << [schemas.last, part.gsub(/\W/, '_')].join('_')
     end
-    schemas.reverse.map { |w| truncate('_pgt' + w) }.tap { |o| puts o.inspect }
+
+    schemas.reverse.map { |w| truncate('_pgt' + w) }
   end
 
   def paths(source_file)
@@ -439,7 +561,6 @@ class BenchmarkHelper < MyHelper
   end
 
   def rb_for_sql(sql_file)
-    puts sql_file
     BENCHMARK_STATEMENT_FILES.detect { |f| f.ext('') == sql_file.pathmap('%{^tmp/benchmark_sql/,statements/}X') } ||
     BENCHMARK_STATEMENT_FILES.detect { |f| f.ext('') == sql_file.pathmap('%{^tmp/benchmark_sql/,statements_for_benchmark/}X') }
   end
@@ -484,3 +605,344 @@ class BenchmarkHelper < MyHelper
   end
 end
 
+class Creator
+
+  def create_table(name, opts = {}, &block)
+    opts = {
+      parquet: true,
+    }.merge(opts)
+    db.create_table!(table_name(name), opts, &block)
+  end
+
+  def table_name(name)
+    name
+  end
+
+  def create_tables(schema)
+    db.execute("USE #{schema};")
+    location_table = table_name(:location)
+    provider_table = table_name(:provider)
+    person_table = table_name(:person)
+    drug_exposure_table = table_name(:drug_exposure)
+    procedure_occurrence_table = table_name(:procedure_occurrence)
+    create_table(table_name(:care_site), :ignore_index_errors=>true) do
+      Bignum :care_site_id
+      Bignum :location_id
+      Bignum :organization_id
+      Bignum :place_of_service_concept_id
+      String :care_site_source_value
+      String :place_of_service_source_value
+    end
+
+    create_table(table_name(:cohort), :ignore_index_errors=>true) do
+      Bignum :cohort_id
+      Bignum :cohort_concept_id
+      DateTime :cohort_start_date
+      DateTime :cohort_end_date
+      Bignum :subject_id
+      String :stop_reason
+    end
+
+    create_table(table_name(:location), :ignore_index_errors=>true) do
+      Bignum :location_id
+      String :address_1
+      String :address_2
+      String :city
+      String :state
+      String :zip
+      String :county
+      String :location_source_value
+    end
+
+    create_table(table_name(:provider), :ignore_index_errors=>true) do
+      Bignum :provider_id
+      String :npi
+      String :dea
+      Bignum :specialty_concept_id
+      Bignum :care_site_id
+      String :provider_source_value
+      String :specialty_source_value
+    end
+
+    create_table(table_name(:organization), :ignore_index_errors=>true) do
+      Bignum :organization_id
+      Bignum :place_of_service_concept_id
+      Bignum :location_id
+      String :organization_source_value
+      String :place_of_service_source_value
+    end
+
+    create_table(table_name(:person), :ignore_index_errors=>true) do
+      Bignum :person_id
+      Bignum :gender_concept_id
+      Integer :year_of_birth
+      Integer :month_of_birth
+      Integer :day_of_birth
+      Bignum :race_concept_id
+      Bignum :ethnicity_concept_id
+      Bignum :location_id
+      Bignum :provider_id
+      Bignum :care_site_id
+      String :person_source_value
+      String :gender_source_value
+      String :race_source_value
+      String :ethnicity_source_value
+    end
+
+    create_table(table_name(:condition_era), :ignore_index_errors=>true) do
+      Bignum :condition_era_id
+      Bignum :person_id
+      Bignum :condition_concept_id
+      DateTime :condition_era_start_date
+      DateTime :condition_era_end_date
+      Bignum :condition_type_concept_id
+      Integer :condition_occurrence_count
+
+    end
+
+    create_table(table_name(:condition_occurrence), :ignore_index_errors=>true) do
+      Bignum :condition_occurrence_id
+      Bignum :person_id
+      Bignum :condition_concept_id
+      DateTime :condition_start_date
+      DateTime :condition_end_date
+      Bignum :condition_type_concept_id
+      String :stop_reason
+      Bignum :associated_provider_id
+      Bignum :visit_occurrence_id
+      String :condition_source_value
+
+    end
+
+    create_table(table_name(:death), :ignore_index_errors=>true) do
+      Bignum :person_id
+      DateTime :death_date
+      Bignum :death_type_concept_id
+      Bignum :cause_of_death_concept_id
+      String :cause_of_death_source_value
+
+    end
+
+    create_table(table_name(:drug_era), :ignore_index_errors=>true) do
+      Bignum :drug_era_id
+      Bignum :person_id
+      Bignum :drug_concept_id
+      DateTime :drug_era_start_date
+      DateTime :drug_era_end_date
+      Bignum :drug_type_concept_id
+      Integer :drug_exposure_count
+
+    end
+
+    create_table(table_name(:drug_exposure), :ignore_index_errors=>true) do
+      Bignum :drug_exposure_id
+      Bignum :person_id
+      Bignum :drug_concept_id
+      DateTime :drug_exposure_start_date
+      DateTime :drug_exposure_end_date
+      Bignum :drug_type_concept_id
+      String :stop_reason
+      Integer :refills
+      Integer :quantity
+      Integer :days_supply
+      String :sig
+      Bignum :prescribing_provider_id
+      Bignum :visit_occurrence_id
+      Bignum :relevant_condition_concept_id
+      String :drug_source_value
+
+    end
+
+    create_table(table_name(:observation), :ignore_index_errors=>true) do
+      Bignum :observation_id
+      Bignum :person_id
+      Bignum :observation_concept_id
+      DateTime :observation_date
+      DateTime :observation_time
+      Float :value_as_number
+      String :value_as_string
+      Bignum :value_as_concept_id
+      Bignum :unit_concept_id
+      Float :range_low
+      Float :range_high
+      Bignum :observation_type_concept_id
+      Bignum :associated_provider_id
+      Bignum :visit_occurrence_id
+      Bignum :relevant_condition_concept_id
+      String :observation_source_value
+      String :units_source_value
+
+    end
+
+    create_table(table_name(:observation_period), :ignore_index_errors=>true) do
+      Bignum :observation_period_id
+      Bignum :person_id
+      DateTime :observation_period_start_date
+      DateTime :observation_period_end_date
+      DateTime :prev_ds_period_end_date
+
+    end
+
+    create_table(table_name(:payer_plan_period), :ignore_index_errors=>true) do
+      Bignum :payer_plan_period_id
+      Bignum :person_id
+      DateTime :payer_plan_period_start_date
+      DateTime :payer_plan_period_end_date
+      String :payer_source_value
+      String :plan_source_value
+      String :family_source_value
+      DateTime :prev_ds_period_end_date
+
+    end
+
+    create_table(table_name(:procedure_occurrence), :ignore_index_errors=>true) do
+      Bignum :procedure_occurrence_id
+      Bignum :person_id
+      Bignum :procedure_concept_id
+      DateTime :procedure_date
+      Bignum :procedure_type_concept_id
+      Bignum :associated_provider_id
+      Bignum :visit_occurrence_id
+      Bignum :relevant_condition_concept_id
+      String :procedure_source_value
+
+    end
+
+    create_table(table_name(:visit_occurrence), :ignore_index_errors=>true) do
+      Bignum :visit_occurrence_id
+      Bignum :person_id
+      DateTime :visit_start_date
+      DateTime :visit_end_date
+      Bignum :place_of_service_concept_id
+      Bignum :care_site_id
+      String :place_of_service_source_value
+
+    end
+
+    create_table(table_name(:drug_cost), :ignore_index_errors=>true) do
+      Bignum :drug_cost_id
+      Bignum :drug_exposure_id
+      Float :paid_copay
+      Float :paid_coinsurance
+      Float :paid_toward_deductible
+      Float :paid_by_payer
+      Float :paid_by_coordination_benefits
+      Float :total_out_of_pocket
+      Float :total_paid
+      Float :ingredient_cost
+      Float :dispensing_fee
+      Float :average_wholesale_price
+      Bignum :payer_plan_period_id
+
+    end
+
+    create_table(table_name(:procedure_cost), :ignore_index_errors=>true) do
+      Bignum :procedure_cost_id
+      Bignum :procedure_occurrence_id
+      Float :paid_copay
+      Float :paid_coinsurance
+      Float :paid_toward_deductible
+      Float :paid_by_payer
+      Float :paid_by_coordination_benefits
+      Float :total_out_of_pocket
+      Float :total_paid
+      Bignum :disease_class_concept_id
+      Bignum :revenue_code_concept_id
+      Bignum :payer_plan_period_id
+      String :disease_class_source_value
+      String :revenue_code_source_value
+
+    end
+  end
+
+
+  def create_vocab_tables(schema)
+    db.run("USE #{schema};")
+    create_table(table_name(:concept), if_not_exists: true) do
+      Bignum :concept_id, :null=>false
+      String :concept_name, :null=>false
+      Bignum :concept_level, :null=>false
+      String :concept_class, :null=>false
+      Bignum :vocabulary_id, :null=>false
+      String :concept_code, :null=>false
+      Date :valid_start_date, :null=>false
+      Date :valid_end_date, :null=>false
+      String :invalid_reason, :size=>1, :fixed=>true
+
+    end
+
+    create_table(table_name(:concept_ancestor), if_not_exists: true) do
+      Bignum :ancestor_concept_id, :null=>false
+      Bignum :descendant_concept_id, :null=>false
+      Bignum :min_levels_of_separation
+      Bignum :max_levels_of_separation
+
+    end
+
+    create_table(table_name(:concept_relationship), if_not_exists: true) do
+      Bignum :concept_id_1, :null=>false
+      Bignum :concept_id_2, :null=>false
+      Bignum :relationship_id, :null=>false
+      Date :valid_start_date, :null=>false
+      Date :valid_end_date, :null=>false
+      String :invalid_reason, :size=>1, :fixed=>true
+
+    end
+
+    create_table(table_name(:concept_synonym), if_not_exists: true) do
+      Bignum :concept_synonym_id, :null=>false
+      Bignum :concept_id, :null=>false
+      String :concept_synonym_name, :null=>false
+
+    end
+
+    create_table(table_name(:drug_approval), if_not_exists: true) do
+      Bignum :ingredient_concept_id, :null => false
+      Date :approval_date, :null => false
+      String :approved_by, :null => false
+    end
+
+    create_table(table_name(:drug_strength), if_not_exists: true) do
+      Bignum :drug_concept_id, :null => false
+      Bignum :ingredient_concept_id, :null => false
+      BigDecimal :amount_value
+      String :amount_unit
+      BigDecimal :concentration_value
+      String :concentration_enum_unit
+      String :concentration_denom_unit
+      Date :valid_start_date, :null => false
+      Date :valid_end_date, :null => false
+      String :invalid_reason
+    end
+
+    create_table(table_name(:relationship), if_not_exists: true) do
+      Bignum :relationship_id, :null=>false
+      String :relationship_name, :null=>false
+      String :is_hierarchical, :size=>1, :fixed=>true
+      String :defines_ancestry, :size=>1, :fixed=>true
+      Bignum :reverse_relationship
+
+    end
+
+    create_table(table_name(:source_to_concept_map), if_not_exists: true) do
+      String :source_code, :null=>false
+      Bignum :source_vocabulary_id, :null=>false
+      String :source_code_description
+      Bignum :target_concept_id, :null=>false
+      Bignum :target_vocabulary_id, :null=>false
+      String :mapping_type
+      String :primary_map, :size=>1, :fixed=>true
+      Date :valid_start_date, :null=>false
+      Date :valid_end_date, :null=>false
+      String :invalid_reason, :size=>1, :fixed=>true
+
+    end
+
+    create_table(table_name(:vocabulary), if_not_exists: true) do
+      Bignum :vocabulary_id, :null=>false
+      String :vocabulary_name, :null=>false
+
+    end
+  end
+
+end

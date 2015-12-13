@@ -22,10 +22,7 @@ CLEAN.include(VALIDATION_SQL_FILES)
 BENCHMARK_SQL_FILES = BENCHMARK_STATEMENT_FILES.pathmap('%{^statements*/,tmp/benchmark_sql/}X.sql')
 CLEAN.include(BENCHMARK_SQL_FILES)
 
-VALIDATION_RESULT_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,validation_results/}X.csv')
-VALIDATION_RESULT_FILES.exclude do |f|
-  `git ls-files #{f}`.present?
-end
+VALIDATION_RESULT_FILES = VALIDATION_STATEMENT_FILES.pathmap('%{^statements*/,validation_results/}X.csv') - `git ls-files`.split
 
 BENCHMARK_RESULT_FILES = BENCHMARK_STATEMENT_FILES.pathmap('%{^statements*/,benchmark_results/}X.csv')
 CLOBBER.include(BENCHMARK_RESULT_FILES)

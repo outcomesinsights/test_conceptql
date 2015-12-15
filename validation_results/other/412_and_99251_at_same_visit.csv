@@ -1,2 +1,2 @@
-person_id,criterion_id,criterion_type,start_date,end_date,value_as_numeric,value_as_string,value_as_concept_id
-215,11416,visit_occurrence,2008-10-31,2008-10-31,,,
+person_id,criterion_id,criterion_type,start_date,end_date,value_as_number,value_as_string,value_as_concept_id,units_source_value,source_value
+215,11416,visit_occurrence,2008-10-31,2008-10-31,,,,,Office

@@ -1,2 +1,2 @@
-person_id,criterion_id,criterion_type,start_date,end_date,value_as_numeric,value_as_string,value_as_concept_id
-177,177,death,2010-07-01,2010-07-01,,,
+person_id,criterion_id,criterion_type,start_date,end_date,value_as_number,value_as_string,value_as_concept_id,units_source_value,source_value
+177,177,death,2010-07-01,2010-07-01,,,,,

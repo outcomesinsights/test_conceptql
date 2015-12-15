@@ -369,6 +369,8 @@ class ValidationHelper < MyHelper
       Bignum :value_as_numeric
       String :value_as_string
       Bignum :value_as_concept_id
+      String :units_source_value
+      String :source_value
     end
   end
 
